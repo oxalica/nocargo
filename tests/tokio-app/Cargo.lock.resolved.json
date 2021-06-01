@@ -1,0 +1,416 @@
+{
+  "autocfg 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)": {
+    "dependencies": [],
+    "features": {},
+    "links": null,
+    "name": "autocfg",
+    "sha256": "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a",
+    "src": "/nix/store/y9xf2aa833rvkjnfrs0pyrb0hp28jjcj-crate-autocfg-1.0.1.tar.gz",
+    "version": "1.0.1",
+    "yanked": false
+  },
+  "hermit-abi 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)": {
+    "dependencies": [
+      {
+        "default_features": false,
+        "features": [],
+        "kind": "normal",
+        "name": "libc",
+        "optional": false,
+        "req": "^0.2.51",
+        "resolved": "libc 0.2.95 (registry+https://github.com/rust-lang/crates.io-index)",
+        "target": null
+      }
+    ],
+    "features": {
+      "default": [],
+      "docs": [],
+      "rustc-dep-of-std": [
+        "core",
+        "compiler_builtins/rustc-dep-of-std",
+        "libc/rustc-dep-of-std"
+      ]
+    },
+    "links": null,
+    "name": "hermit-abi",
+    "sha256": "322f4de77956e22ed0e5032c359a0f1273f1f7f0d79bfa3b8ffbc730d7fbcc5c",
+    "src": "/nix/store/g65zrz03pc4sygg2a4kirpa3z1s8jqmp-crate-hermit-abi-0.1.18.tar.gz",
+    "version": "0.1.18",
+    "yanked": false
+  },
+  "libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)": {
+    "dependencies": [],
+    "features": {
+      "cargo-build": [],
+      "default": [
+        "cargo-build"
+      ]
+    },
+    "links": null,
+    "name": "libc",
+    "sha256": "e32a70cf75e5846d53a673923498228bbec6a8624708a9ea5645f075d6276122",
+    "src": "/nix/store/s1gcm6s4dh7cv4pl7bxiw3g681kxyz11-crate-libc-0.1.12.tar.gz",
+    "version": "0.1.12",
+    "yanked": false
+  },
+  "libc 0.2.95 (registry+https://github.com/rust-lang/crates.io-index)": {
+    "dependencies": [],
+    "features": {
+      "align": [],
+      "const-extern-fn": [],
+      "default": [
+        "std"
+      ],
+      "extra_traits": [],
+      "rustc-dep-of-std": [
+        "align",
+        "rustc-std-workspace-core"
+      ],
+      "std": [],
+      "use_std": [
+        "std"
+      ]
+    },
+    "links": null,
+    "name": "libc",
+    "sha256": "789da6d93f1b866ffe175afc5322a4d76c038605a1c3319bb57b06967ca98a36",
+    "src": "/nix/store/kbi1aawz2pj1ihs5ys322ddm0nfjr5ip-crate-libc-0.2.95.tar.gz",
+    "version": "0.2.95",
+    "yanked": false
+  },
+  "num_cpus 1.13.0 (registry+https://github.com/rust-lang/crates.io-index)": {
+    "dependencies": [
+      {
+        "default_features": true,
+        "features": [],
+        "kind": "normal",
+        "name": "libc",
+        "optional": false,
+        "req": "^0.2.26",
+        "resolved": "libc 0.2.95 (registry+https://github.com/rust-lang/crates.io-index)",
+        "target": null
+      },
+      {
+        "default_features": true,
+        "features": [],
+        "kind": "normal",
+        "name": "hermit-abi",
+        "optional": false,
+        "req": "^0.1.3",
+        "resolved": "hermit-abi 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
+        "target": "cfg(all(any(target_arch = \"x86_64\", target_arch = \"aarch64\"), target_os = \"hermit\"))"
+      }
+    ],
+    "features": {},
+    "links": null,
+    "name": "num_cpus",
+    "sha256": "05499f3756671c15885fee9034446956fff3f243d6077b91e5767df161f766b3",
+    "src": "/nix/store/xpg8ya9iry02zyf7lr6g7mgd4lkmck08-crate-num_cpus-1.13.0.tar.gz",
+    "version": "1.13.0",
+    "yanked": false
+  },
+  "pin-project-lite 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)": {
+    "dependencies": [],
+    "features": {},
+    "links": null,
+    "name": "pin-project-lite",
+    "sha256": "dc0e1f259c92177c30a4c9d177246edd0a3568b25756a977d0632cf8fa37e905",
+    "src": "/nix/store/3mgsk62sh11b505b8cflmzq081xjrxgv-crate-pin-project-lite-0.2.6.tar.gz",
+    "version": "0.2.6",
+    "yanked": false
+  },
+  "proc-macro2 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)": {
+    "dependencies": [
+      {
+        "default_features": true,
+        "features": [],
+        "kind": "normal",
+        "name": "unicode-xid",
+        "optional": false,
+        "req": "^0.2",
+        "resolved": "unicode-xid 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+        "target": null
+      }
+    ],
+    "features": {
+      "default": [
+        "proc-macro"
+      ],
+      "nightly": [],
+      "proc-macro": [],
+      "span-locations": []
+    },
+    "links": null,
+    "name": "proc-macro2",
+    "sha256": "f0d8caf72986c1a598726adc988bb5984792ef84f5ee5aa50209145ee8077038",
+    "src": "/nix/store/8k4ci6n3x1lc87hwnsghmgnxnc1waf7i-crate-proc-macro2-1.0.27.tar.gz",
+    "version": "1.0.27",
+    "yanked": false
+  },
+  "quote 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)": {
+    "dependencies": [
+      {
+        "default_features": false,
+        "features": [],
+        "kind": "normal",
+        "name": "proc-macro2",
+        "optional": false,
+        "req": "^1.0.20",
+        "resolved": "proc-macro2 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
+        "target": null
+      }
+    ],
+    "features": {
+      "default": [
+        "proc-macro"
+      ],
+      "proc-macro": [
+        "proc-macro2/proc-macro"
+      ]
+    },
+    "links": null,
+    "name": "quote",
+    "sha256": "c3d0b9745dc2debf507c8422de05d7226cc1f0644216dfdfead988f9b1ab32a7",
+    "src": "/nix/store/pnn7aad4vs06x529x6qrm7l29vh9m2p0-crate-quote-1.0.9.tar.gz",
+    "version": "1.0.9",
+    "yanked": false
+  },
+  "syn 1.0.72 (registry+https://github.com/rust-lang/crates.io-index)": {
+    "dependencies": [
+      {
+        "default_features": false,
+        "features": [],
+        "kind": "normal",
+        "name": "proc-macro2",
+        "optional": false,
+        "req": "^1.0.26",
+        "resolved": "proc-macro2 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
+        "target": null
+      },
+      {
+        "default_features": true,
+        "features": [],
+        "kind": "normal",
+        "name": "unicode-xid",
+        "optional": false,
+        "req": "^0.2",
+        "resolved": "unicode-xid 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+        "target": null
+      }
+    ],
+    "features": {
+      "clone-impls": [],
+      "default": [
+        "derive",
+        "parsing",
+        "printing",
+        "clone-impls",
+        "proc-macro"
+      ],
+      "derive": [],
+      "extra-traits": [],
+      "fold": [],
+      "full": [],
+      "parsing": [],
+      "printing": [
+        "quote"
+      ],
+      "proc-macro": [
+        "proc-macro2/proc-macro",
+        "quote/proc-macro"
+      ],
+      "test": [
+        "syn-test-suite/all-features"
+      ],
+      "visit": [],
+      "visit-mut": []
+    },
+    "links": null,
+    "name": "syn",
+    "sha256": "a1e8cdbefb79a9a5a65e0db8b47b723ee907b7c7f8496c76a1770b5c310bab82",
+    "src": "/nix/store/4fn54i39qxs1cwx0f6i1q7r1nygzqq2m-crate-syn-1.0.72.tar.gz",
+    "version": "1.0.72",
+    "yanked": false
+  },
+  "tokio 1.6.1 (registry+https://github.com/rust-lang/crates.io-index)": {
+    "dependencies": [
+      {
+        "default_features": true,
+        "features": [],
+        "kind": "normal",
+        "name": "pin-project-lite",
+        "optional": false,
+        "req": "^0.2.0",
+        "resolved": "pin-project-lite 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+        "target": null
+      },
+      {
+        "default_features": true,
+        "features": [],
+        "kind": "build",
+        "name": "autocfg",
+        "optional": false,
+        "req": "^1",
+        "resolved": "autocfg 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+        "target": null
+      }
+    ],
+    "features": {
+      "default": [],
+      "fs": [],
+      "full": [
+        "fs",
+        "io-util",
+        "io-std",
+        "macros",
+        "net",
+        "parking_lot",
+        "process",
+        "rt",
+        "rt-multi-thread",
+        "signal",
+        "sync",
+        "time"
+      ],
+      "io-std": [],
+      "io-util": [
+        "memchr",
+        "bytes"
+      ],
+      "macros": [
+        "tokio-macros"
+      ],
+      "net": [
+        "libc",
+        "mio/os-poll",
+        "mio/os-util",
+        "mio/tcp",
+        "mio/udp",
+        "mio/uds"
+      ],
+      "process": [
+        "bytes",
+        "once_cell",
+        "libc",
+        "mio/os-poll",
+        "mio/os-util",
+        "mio/uds",
+        "signal-hook-registry",
+        "winapi/threadpoollegacyapiset"
+      ],
+      "rt": [],
+      "rt-multi-thread": [
+        "num_cpus",
+        "rt"
+      ],
+      "signal": [
+        "once_cell",
+        "libc",
+        "mio/os-poll",
+        "mio/uds",
+        "mio/os-util",
+        "signal-hook-registry",
+        "winapi/consoleapi"
+      ],
+      "sync": [],
+      "test-util": [],
+      "time": []
+    },
+    "links": null,
+    "name": "tokio",
+    "sha256": "0a38d31d7831c6ed7aad00aa4c12d9375fd225a6dd77da1d25b707346319a975",
+    "src": "/nix/store/g0r7v0mpqhy4fc3f3a1r947bcbil5jyc-crate-tokio-1.6.1.tar.gz",
+    "version": "1.6.1",
+    "yanked": false
+  },
+  "tokio-app 0.1.0 ()": {
+    "dependencies": [
+      {
+        "default_features": false,
+        "features": [],
+        "kind": "normal",
+        "name": "liboldc",
+        "optional": false,
+        "package": "libc",
+        "req": "0.1",
+        "resolved": "libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
+        "target": null
+      },
+      {
+        "default_features": false,
+        "features": [
+          "rt-multi-thread",
+          "macros",
+          "time"
+        ],
+        "kind": "normal",
+        "name": "tokio",
+        "optional": false,
+        "package": "tokio",
+        "req": "1.6.1",
+        "resolved": "tokio 1.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
+        "target": null
+      }
+    ],
+    "features": {},
+    "name": "tokio-app",
+    "version": "0.1.0"
+  },
+  "tokio-macros 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)": {
+    "dependencies": [
+      {
+        "default_features": true,
+        "features": [],
+        "kind": "normal",
+        "name": "proc-macro2",
+        "optional": false,
+        "req": "^1.0.7",
+        "resolved": "proc-macro2 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
+        "target": null
+      },
+      {
+        "default_features": true,
+        "features": [],
+        "kind": "normal",
+        "name": "quote",
+        "optional": false,
+        "req": "^1",
+        "resolved": "quote 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
+        "target": null
+      },
+      {
+        "default_features": true,
+        "features": [
+          "full"
+        ],
+        "kind": "normal",
+        "name": "syn",
+        "optional": false,
+        "req": "^1.0.56",
+        "resolved": "syn 1.0.72 (registry+https://github.com/rust-lang/crates.io-index)",
+        "target": null
+      }
+    ],
+    "features": {},
+    "links": null,
+    "name": "tokio-macros",
+    "sha256": "c49e3df43841dafb86046472506755d8501c5615673955f6aa17181125d13c37",
+    "src": "/nix/store/958xmmk173ycakyg3y05z86i6nrxp9yn-crate-tokio-macros-1.2.0.tar.gz",
+    "version": "1.2.0",
+    "yanked": false
+  },
+  "unicode-xid 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)": {
+    "dependencies": [],
+    "features": {
+      "bench": [],
+      "default": [],
+      "no_std": []
+    },
+    "links": null,
+    "name": "unicode-xid",
+    "sha256": "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3",
+    "src": "/nix/store/sbj4wwlhflzfvjp0rz80zpjcvx5k175z-crate-unicode-xid-0.2.2.tar.gz",
+    "version": "0.2.2",
+    "yanked": false
+  }
+}

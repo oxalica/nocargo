@@ -165,9 +165,24 @@ in rec {
     else
       throw "Invalid version comparator: `${req}`";
 
+  version-compare-tests = { assertEq, ... }: {
+    version-compare-simple1 = assertEq (compareSemver "1.2.3" "1.2.2") 1;
+    version-compare-simple2 = assertEq (compareSemver "1.2.3" "1.2.3") 0;
+    version-compare-simple3 = assertEq (compareSemver "1.2.3" "1.2.4") (-1);
+    version-compare-simple4 = assertEq (compareSemver "1.2.3" "1.1.3") 1;
+    version-compare-simple5 = assertEq (compareSemver "1.2.3" "1.3.3") (-1);
+    version-compare-simple6 = assertEq (compareSemver "1.2.3" "0.2.3") 1;
+    version-compare-simple7 = assertEq (compareSemver "1.2.3" "2.2.3") (-1);
+  };
 
   # From https://github.com/dtolnay/semver/blob/a03d376560e0c4d16518bc271867b1981c85acf0/tests/test_version_req.rs
-  version-req-tests = testMatchReq: {
+  version-req-tests = { assertEqMsg, ... }: let
+    testMatchReq = req: { yes ? [], no ? [] }: let
+      checker = parseSemverReq req;
+    in
+      map (ver: assertEqMsg ver (checker ver) true) yes ++
+      map (ver: assertEqMsg ver (checker ver) false) no;
+  in {
     version-req-eq1 = testMatchReq "=1.0.0" {
       yes = [ "1.0.0" ];
       no  = [ "1.0.1" "0.9.9" "0.10.0" "0.1.0" "1.0.0-pre" ];

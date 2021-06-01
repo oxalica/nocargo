@@ -7,7 +7,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, crates-io-index }: {
+  outputs = { self, nixpkgs, crates-io-index }: let
     overlay = final: prev: let
       out = import ./. final prev;
       out' = out // {
@@ -16,13 +16,14 @@
         };
       };
     in out';
+  in {
+
+    inherit overlay;
 
     checks."x86_64-linux" = let
-      inherit (nixpkgs) lib;
+      inherit (import nixpkgs { system = "x86_64-linux"; overlays = [ overlay ]; }) lib crates-nix;
 
-      inherit (import ./lib.nix { inherit lib; }) compareSemver parseSemverReq version-req-tests;
-
-      assertEqWithMsg = msg: lhs: rhs: {
+      assertEqMsg = msg: lhs: rhs: {
         assertion = lhs == rhs;
         message = "${msg}: `${toString lhs}` != `${toString rhs}`";
       };
@@ -32,21 +33,12 @@
         message = "`${toString lhs}` != `${toString rhs}`";
       };
 
-      testMatchReq = req: { yes ? [], no ? [] }: let
-        checker = parseSemverReq req;
-      in
-        map (ver: assertEqWithMsg ver (checker ver) true) yes ++
-        map (ver: assertEqWithMsg ver (checker ver) false) no;
+      assertFns = { inherit assertEq assertEqMsg; };
 
-      assertions = {
-        version-compare-simple1 = assertEq (compareSemver "1.2.3" "1.2.2") 1;
-        version-compare-simple2 = assertEq (compareSemver "1.2.3" "1.2.3") 0;
-        version-compare-simple3 = assertEq (compareSemver "1.2.3" "1.2.4") (-1);
-        version-compare-simple4 = assertEq (compareSemver "1.2.3" "1.1.3") 1;
-        version-compare-simple5 = assertEq (compareSemver "1.2.3" "1.3.3") (-1);
-        version-compare-simple6 = assertEq (compareSemver "1.2.3" "0.2.3") 1;
-        version-compare-simple7 = assertEq (compareSemver "1.2.3" "2.2.3") (-1);
-      } // version-req-tests testMatchReq;
+      assertions =
+        lib.crates-nix.version-req-tests assertFns //
+        lib.crates-nix.feature-tests assertFns //
+        lib.crates-nix.resolve-tests assertFns crates-nix;
 
       checkDrvs = {};
 
