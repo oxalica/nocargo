@@ -122,7 +122,7 @@ in rec {
     feature-common5 = testUpdate defs [ "b" "c" ] [ "a" "b" "c" ];
     feature-common6 = testUpdate defs [ "a" "b" "c" ] [ "a" "b" "c" ];
     feature-common7 = testUpdate defs [ "b" "c" "b" ] [ "a" "b" "c" ];
-      
+
   }) // (let defs = { a = [ "b" "c" ]; b = [ "d" "e" ]; c = [ "f" "g"]; d = []; e = []; f = []; g = []; }; in {
     feature-tree1 = testUpdate defs [ "a" ] [ "a" "b" "c" "d" "e" "f" "g" ];
     feature-tree2 = testUpdate defs [ "b" ] [ "b" "d" "e" ];
@@ -221,7 +221,7 @@ in rec {
         else
           assert args.name == "tokio-app";
           info;
-          
+
       resolved = resolveDepsFromLock getCrateInfo lock;
       resolved' = mapAttrs (id: { dependencies, ... }@args:
         args // {

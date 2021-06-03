@@ -3,4 +3,3 @@ import <nixpkgs> {
     (builtins.getFlake (toString ./.)).outputs.overlay
   ];
 }
-
