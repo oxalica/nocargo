@@ -18,7 +18,7 @@ let
   # Get crate info of the given package.
   getCrateInfo = { name, version, checksum ? null, ... }: let
     len = stringLength name;
-    info = 
+    info =
       if len == 1 then
         index."1".${name}.${version} or null
       else if len == 2 then
@@ -121,8 +121,9 @@ let
 in
 {
   lib = prev.lib // {
-    crates-nix = 
+    crates-nix =
       import ./semver.nix { inherit (final) lib; } //
+      import ./target-cfg.nix { inherit (final) lib; } //
       import ./resolve.nix { inherit (final) lib; };
   };
 
@@ -136,4 +137,3 @@ in
     buildCrate = final.callPackage ./build-crate {};
   };
 }
-
