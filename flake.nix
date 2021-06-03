@@ -33,7 +33,15 @@
         message = "`${toString lhs}` != `${toString rhs}`";
       };
 
-      assertFns = { inherit assertEq assertEqMsg; };
+      assertDeepEq = lhs: rhs: let
+        lhs' = builtins.toJSON lhs;
+        rhs' = builtins.toJSON rhs;
+      in {
+        assertion = lhs' == rhs';
+        message = "\nLhs:\n${lhs'}\nRhs:\n${rhs'}";
+      };
+
+      assertFns = { inherit assertEq assertEqMsg assertDeepEq; };
 
       assertions =
         lib.crates-nix.version-req-tests assertFns //

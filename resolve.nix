@@ -136,7 +136,7 @@ in rec {
     feature-cycle3 = testUpdate defs [ "a" ] [ "a" "b" "c" ];
   });
 
-  resolve-tests = { assertEq, ... }: crates-nix: {
+  resolve-tests = { assertDeepEq, ... }: crates-nix: {
     resolve-simple = let
       index = {
         libc."0.1.12" = { name = "libc"; version = "0.1.12"; dependencies = []; };
@@ -207,7 +207,7 @@ in rec {
       getCrateInfo = { name, version, ... }: index.${name}.${version};
       resolved = resolveDepsFromLock getCrateInfo lock;
     in
-      assertEq (toJSON resolved) (toJSON expected);
+      assertDeepEq resolved expected;
 
     resolve-tokio-app = let
       lock = fromTOML (readFile ./tests/tokio-app/Cargo.lock);
@@ -229,7 +229,7 @@ in rec {
         }
       ) resolved;
     in
-      assertEq (toJSON resolved') (toJSON (fromJSON expected)); # Normalize.
+      assertDeepEq resolved' (fromJSON expected); # Normalize.
 
     crate-info-from-toml = let
       cargoToml = fromTOML (readFile ./tests/tokio-app/Cargo.toml);
@@ -263,7 +263,6 @@ in rec {
         ];
       };
     in
-      assertEq (toJSON info) (toJSON expected);
-
+      assertDeepEq info expected;
   };
 }
