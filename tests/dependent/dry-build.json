@@ -1,12 +1,15 @@
 {
+  "buildDependencies": [],
   "crateName": "dependent",
   "dependencies": [
     {
       "drv": {
+        "buildDependencies": [],
         "crateName": "semver",
         "dependencies": [
           {
             "drv": {
+              "buildDependencies": [],
               "crateName": "serde",
               "dependencies": [],
               "features": [],

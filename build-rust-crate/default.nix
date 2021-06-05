@@ -4,13 +4,13 @@
 , src
 # [ { name = "foo"; drv = <derivation>; } ]
 , dependencies ? []
-# TODO: buildDependencies
+, buildDependencies ? []
 , features ? []
 , nativeBuildInputs ? []
 , ...
 }@args:
 let
-  rustcMeta = let
+  mkRustcMeta = dependencies: features: let
     deps = lib.concatMapStrings (dep: dep.drv.rustcMeta) dependencies;
     feats = lib.concatStringsSep ";" features;
     final = "${crateName} ${version} ${feats} ${deps}";
@@ -19,16 +19,18 @@ let
 
   # Extensions are not included here.
   mkDeps = map ({ name, drv, ... }:
-    "${name}:${drv}/lib/lib${drv.crateName}-${drv.rustcMeta}:${drv.dev}/nix-support/rustc-dep-closure");
+    "${name}:${drv}/lib/lib${drv.crateName}-${drv.rustcMeta}:${drv.dev}/nix-support/rust-deps-closure");
 
 in
 stdenv.mkDerivation ({
   pname = "rust_${crateName}";
-  inherit crateName version src features rustcMeta;
-
-  outputs = [ "out" "dev" ];
+  inherit crateName version src features;
 
   builder = ./builder.sh;
+  outputs = [ "out" "dev" ];
+
+  buildRustcMeta = mkRustcMeta buildDependencies [];
+  rustcMeta = mkRustcMeta dependencies features;
 
   rustcBuildTarget = rust.toRustTarget stdenv.buildPlatform;
   rustcHostTarget = rust.toRustTarget stdenv.hostPlatform;
@@ -38,6 +40,7 @@ stdenv.mkDerivation ({
   BUILD_RUSTC = "${buildPackages.buildPackages.rustc}/bin/rustc";
   RUSTC = "${buildPackages.rustc}/bin/rustc";
 
+  buildDependencies = mkDeps buildDependencies;
   dependencies = mkDeps dependencies;
 
   dontInstall = true;

@@ -1,8 +1,10 @@
 {
+  "buildDependencies": [],
   "crateName": "tokio_app",
   "dependencies": [
     {
       "drv": {
+        "buildDependencies": [],
         "crateName": "libc",
         "dependencies": [],
         "features": [],
@@ -12,14 +14,28 @@
     },
     {
       "drv": {
+        "buildDependencies": [
+          {
+            "drv": {
+              "buildDependencies": [],
+              "crateName": "autocfg",
+              "dependencies": [],
+              "features": [],
+              "version": "1.0.1"
+            },
+            "name": "autocfg"
+          }
+        ],
         "crateName": "tokio",
         "dependencies": [
           {
             "drv": {
+              "buildDependencies": [],
               "crateName": "num_cpus",
               "dependencies": [
                 {
                   "drv": {
+                    "buildDependencies": [],
                     "crateName": "libc",
                     "dependencies": [],
                     "features": [
@@ -38,6 +54,7 @@
           },
           {
             "drv": {
+              "buildDependencies": [],
               "crateName": "pin_project_lite",
               "dependencies": [],
               "features": [],
@@ -47,14 +64,17 @@
           },
           {
             "drv": {
+              "buildDependencies": [],
               "crateName": "tokio_macros",
               "dependencies": [
                 {
                   "drv": {
+                    "buildDependencies": [],
                     "crateName": "proc_macro2",
                     "dependencies": [
                       {
                         "drv": {
+                          "buildDependencies": [],
                           "crateName": "unicode_xid",
                           "dependencies": [],
                           "features": [
@@ -75,14 +95,17 @@
                 },
                 {
                   "drv": {
+                    "buildDependencies": [],
                     "crateName": "quote",
                     "dependencies": [
                       {
                         "drv": {
+                          "buildDependencies": [],
                           "crateName": "proc_macro2",
                           "dependencies": [
                             {
                               "drv": {
+                                "buildDependencies": [],
                                 "crateName": "unicode_xid",
                                 "dependencies": [],
                                 "features": [
@@ -112,14 +135,17 @@
                 },
                 {
                   "drv": {
+                    "buildDependencies": [],
                     "crateName": "syn",
                     "dependencies": [
                       {
                         "drv": {
+                          "buildDependencies": [],
                           "crateName": "proc_macro2",
                           "dependencies": [
                             {
                               "drv": {
+                                "buildDependencies": [],
                                 "crateName": "unicode_xid",
                                 "dependencies": [],
                                 "features": [
@@ -140,14 +166,17 @@
                       },
                       {
                         "drv": {
+                          "buildDependencies": [],
                           "crateName": "quote",
                           "dependencies": [
                             {
                               "drv": {
+                                "buildDependencies": [],
                                 "crateName": "proc_macro2",
                                 "dependencies": [
                                   {
                                     "drv": {
+                                      "buildDependencies": [],
                                       "crateName": "unicode_xid",
                                       "dependencies": [],
                                       "features": [
@@ -177,6 +206,7 @@
                       },
                       {
                         "drv": {
+                          "buildDependencies": [],
                           "crateName": "unicode_xid",
                           "dependencies": [],
                           "features": [

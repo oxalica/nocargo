@@ -41,25 +41,46 @@ rec {
       rootFeatures = if features != null then features
         else if rootInfo.features ? default then [ "default" ]
         else [];
+
+      resolvedBuildFeatures = resolveFeatures {
+        inherit pkgSet rootId rootFeatures;
+        depFilter = dep: dep.kind == "normal" || dep.kind == "build";
+      };
       resolvedNormalFeatures = resolveFeatures {
         inherit pkgSet rootId rootFeatures;
         depFilter = dep: dep.kind == "normal";
       };
 
-      pkgs = mapAttrs (id: resolvedFeatures: let
-        info = pkgSet.${id};
-        selectedDeps =
-          map (dep: { name = dep.name; drv = pkgs.${dep.resolved}; })
-            (filter ({ kind, name, optional, ... }:
-              kind == "normal" && (optional -> elem name resolvedFeatures))
-            info.dependencies);
-      in
-        if resolvedFeatures != null then
+      selectDeps = pkgs: deps: features: selectKind:
+        map (dep: { name = dep.name; drv = pkgs.${dep.resolved}; })
+          (filter ({ kind, name, optional, ... }:
+            kind == selectKind && (optional -> elem name features))
+          deps);
+
+      mkCrateName = replaceStrings [ "-" ] [ "_" ];
+
+      pkgsBuild = mapAttrs (id: features: let info = pkgSet.${id}; in
+        if features != null then
           buildRustCrate {
             inherit (info) version src;
-            crateName = "${replaceStrings [ "-" ] [ "_" ] info.name}";
-            features = resolvedNormalFeatures.${id};
-            dependencies = selectedDeps;
+            inherit features;
+            crateName = mkCrateName info.name;
+            buildDependencies = selectDeps pkgsBuild info.dependencies features "build";
+            # Build dependency's normal dependency is still build dependency.
+            dependencies = selectDeps pkgsBuild info.dependencies features "normal";
+          }
+        else
+          null
+      ) resolvedBuildFeatures;
+
+      pkgs = mapAttrs (id: features: let info = pkgSet.${id}; in
+        if features != null then
+          buildRustCrate {
+            inherit (info) version src;
+            inherit features;
+            crateName = mkCrateName info.name;
+            buildDependencies = selectDeps pkgsBuild info.dependencies features "build";
+            dependencies = selectDeps pkgs info.dependencies features "normal";
           }
         else
           null
