@@ -3,7 +3,7 @@ let
   inherit (builtins) readFile match fromTOML fromJSON toJSON;
   inherit (lib)
     foldl' foldr mapAttrs attrNames filterAttrs listToAttrs filter elemAt length optional sort composeManyExtensions;
-  inherit (lib.crates-nix) parseSemverReq;
+  inherit (lib.crates-nix) parseSemverReq mkCrateInfoFromCargoToml getCrateInfoFromIndex;
 in rec {
 
   # Resolve the dependencies graph based on lock file.
@@ -311,10 +311,10 @@ in rec {
       expected = readFile ./tests/tokio-app/Cargo.lock.resolved.json;
 
       cargoToml = fromTOML (readFile ./tests/tokio-app/Cargo.toml);
-      info = crates-nix.mkCrateInfoFromCargoToml cargoToml;
+      info = mkCrateInfoFromCargoToml cargoToml "<src>";
       getCrateInfo = args:
         if args ? source then
-          crates-nix.getCrateInfo args
+          getCrateInfoFromIndex crates-nix.index args
         else
           assert args.name == "tokio-app";
           info;
@@ -327,40 +327,6 @@ in rec {
       ) resolved;
     in
       assertDeepEq resolved' (fromJSON expected); # Normalize.
-
-    crate-info-from-toml = let
-      cargoToml = fromTOML (readFile ./tests/tokio-app/Cargo.toml);
-      info = crates-nix.mkCrateInfoFromCargoToml cargoToml;
-
-      expected = {
-        name = "tokio-app";
-        version = "0.1.0";
-        features = { };
-        dependencies = [
-          {
-            name = "liboldc";
-            package = "libc";
-            default_features = false;
-            features = [ ];
-            kind = "normal";
-            optional = false;
-            req = "0.1";
-            target = null;
-          }
-          {
-            name = "tokio";
-            package = "tokio";
-            default_features = false;
-            features = [ "rt-multi-thread" "macros" "time" ];
-            kind = "normal";
-            optional = false;
-            req = "1.6.1";
-            target = null;
-          }
-        ];
-      };
-    in
-      assertDeepEq info expected;
   };
 
   resolve-features-tests = { assertDeepEq, ... }: let

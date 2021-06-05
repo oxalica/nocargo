@@ -353,7 +353,9 @@
       }
     ],
     "features": {},
+    "links": null,
     "name": "tokio-app",
+    "src": "<src>",
     "version": "0.1.0"
   },
   "tokio-macros 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)": {

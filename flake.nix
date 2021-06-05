@@ -48,7 +48,8 @@
         lib.crates-nix.cfg-parser-tests assertFns //
         lib.crates-nix.feature-tests assertFns //
         lib.crates-nix.resolve-deps-tests assertFns crates-nix //
-        lib.crates-nix.resolve-features-tests assertFns;
+        lib.crates-nix.resolve-features-tests assertFns //
+        lib.crates-nix.crate-info-from-toml-tests assertFns;
 
       checkDrvs = {};
 
