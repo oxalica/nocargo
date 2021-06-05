@@ -21,7 +21,7 @@
     inherit overlay;
 
     checks."x86_64-linux" = let
-      inherit (import nixpkgs { system = "x86_64-linux"; overlays = [ overlay ]; }) lib crates-nix;
+      inherit (import nixpkgs { system = "x86_64-linux"; overlays = [ overlay ]; }) lib crates-nix stdenv;
 
       assertEqMsg = msg: lhs: rhs: {
         assertion = lhs == rhs;
@@ -51,7 +51,7 @@
         lib.crates-nix.resolve-deps-tests assertFns crates-nix //
         lib.crates-nix.resolve-features-tests assertFns //
         lib.crates-nix.crate-info-from-toml-tests assertFns //
-        lib.crates-nix.build-from-src-dry-tests assertFns crates-nix;
+        lib.crates-nix.build-from-src-dry-tests assertFns { inherit crates-nix stdenv; };
 
       checkDrvs = {};
 

@@ -140,7 +140,7 @@ in rec {
     # Overlay of spreading <id>'s nested features into dependencies and enable optional dependencies.
     updateDepsOverlay = id: final: prev: let
       info = pkgSet.${id};
-      finalFeatures = final.${id};
+      finalFeatures = final.${id} or {};
       updateDep = { name, optional, resolved, default_features, features, ... }: final: prev: let
         depFeatures =
           lib.optional (default_features && featureDefs.${resolved} ? default) "default" ++

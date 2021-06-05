@@ -29,30 +29,6 @@
                     "version": "0.2.95"
                   },
                   "name": "libc"
-                },
-                {
-                  "drv": {
-                    "crateName": "hermit_abi",
-                    "dependencies": [
-                      {
-                        "drv": {
-                          "crateName": "libc",
-                          "dependencies": [],
-                          "features": [
-                            "default",
-                            "std"
-                          ],
-                          "version": "0.2.95"
-                        },
-                        "name": "libc"
-                      }
-                    ],
-                    "features": [
-                      "default"
-                    ],
-                    "version": "0.1.18"
-                  },
-                  "name": "hermit-abi"
                 }
               ],
               "features": [],

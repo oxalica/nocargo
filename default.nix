@@ -19,6 +19,9 @@ in
 
     buildRustCrate = final.callPackage ./build-rust-crate {};
 
-    buildRustCrateFromSrcAndLock = buildRustCrateFromSrcAndLock index buildRustCrate;
+    buildRustCrateFromSrcAndLock = buildRustCrateFromSrcAndLock {
+      inherit index buildRustCrate;
+      inherit (final) stdenv;
+    };
   };
 }
