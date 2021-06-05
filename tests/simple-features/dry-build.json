@@ -1,0 +1,9 @@
+{
+  "crateName": "simple_features",
+  "dependencies": [],
+  "features": [
+    "a",
+    "default"
+  ],
+  "version": "0.1.0"
+}

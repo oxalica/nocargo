@@ -1,0 +1,250 @@
+{
+  "crateName": "tokio_app",
+  "dependencies": [
+    {
+      "drv": {
+        "crateName": "libc",
+        "dependencies": [],
+        "features": [],
+        "version": "0.1.12"
+      },
+      "name": "liboldc"
+    },
+    {
+      "drv": {
+        "crateName": "tokio",
+        "dependencies": [
+          {
+            "drv": {
+              "crateName": "num_cpus",
+              "dependencies": [
+                {
+                  "drv": {
+                    "crateName": "libc",
+                    "dependencies": [],
+                    "features": [
+                      "default",
+                      "std"
+                    ],
+                    "version": "0.2.95"
+                  },
+                  "name": "libc"
+                },
+                {
+                  "drv": {
+                    "crateName": "hermit_abi",
+                    "dependencies": [
+                      {
+                        "drv": {
+                          "crateName": "libc",
+                          "dependencies": [],
+                          "features": [
+                            "default",
+                            "std"
+                          ],
+                          "version": "0.2.95"
+                        },
+                        "name": "libc"
+                      }
+                    ],
+                    "features": [
+                      "default"
+                    ],
+                    "version": "0.1.18"
+                  },
+                  "name": "hermit-abi"
+                }
+              ],
+              "features": [],
+              "version": "1.13.0"
+            },
+            "name": "num_cpus"
+          },
+          {
+            "drv": {
+              "crateName": "pin_project_lite",
+              "dependencies": [],
+              "features": [],
+              "version": "0.2.6"
+            },
+            "name": "pin-project-lite"
+          },
+          {
+            "drv": {
+              "crateName": "tokio_macros",
+              "dependencies": [
+                {
+                  "drv": {
+                    "crateName": "proc_macro2",
+                    "dependencies": [
+                      {
+                        "drv": {
+                          "crateName": "unicode_xid",
+                          "dependencies": [],
+                          "features": [
+                            "default"
+                          ],
+                          "version": "0.2.2"
+                        },
+                        "name": "unicode-xid"
+                      }
+                    ],
+                    "features": [
+                      "default",
+                      "proc-macro"
+                    ],
+                    "version": "1.0.27"
+                  },
+                  "name": "proc-macro2"
+                },
+                {
+                  "drv": {
+                    "crateName": "quote",
+                    "dependencies": [
+                      {
+                        "drv": {
+                          "crateName": "proc_macro2",
+                          "dependencies": [
+                            {
+                              "drv": {
+                                "crateName": "unicode_xid",
+                                "dependencies": [],
+                                "features": [
+                                  "default"
+                                ],
+                                "version": "0.2.2"
+                              },
+                              "name": "unicode-xid"
+                            }
+                          ],
+                          "features": [
+                            "default",
+                            "proc-macro"
+                          ],
+                          "version": "1.0.27"
+                        },
+                        "name": "proc-macro2"
+                      }
+                    ],
+                    "features": [
+                      "default",
+                      "proc-macro"
+                    ],
+                    "version": "1.0.9"
+                  },
+                  "name": "quote"
+                },
+                {
+                  "drv": {
+                    "crateName": "syn",
+                    "dependencies": [
+                      {
+                        "drv": {
+                          "crateName": "proc_macro2",
+                          "dependencies": [
+                            {
+                              "drv": {
+                                "crateName": "unicode_xid",
+                                "dependencies": [],
+                                "features": [
+                                  "default"
+                                ],
+                                "version": "0.2.2"
+                              },
+                              "name": "unicode-xid"
+                            }
+                          ],
+                          "features": [
+                            "default",
+                            "proc-macro"
+                          ],
+                          "version": "1.0.27"
+                        },
+                        "name": "proc-macro2"
+                      },
+                      {
+                        "drv": {
+                          "crateName": "quote",
+                          "dependencies": [
+                            {
+                              "drv": {
+                                "crateName": "proc_macro2",
+                                "dependencies": [
+                                  {
+                                    "drv": {
+                                      "crateName": "unicode_xid",
+                                      "dependencies": [],
+                                      "features": [
+                                        "default"
+                                      ],
+                                      "version": "0.2.2"
+                                    },
+                                    "name": "unicode-xid"
+                                  }
+                                ],
+                                "features": [
+                                  "default",
+                                  "proc-macro"
+                                ],
+                                "version": "1.0.27"
+                              },
+                              "name": "proc-macro2"
+                            }
+                          ],
+                          "features": [
+                            "default",
+                            "proc-macro"
+                          ],
+                          "version": "1.0.9"
+                        },
+                        "name": "quote"
+                      },
+                      {
+                        "drv": {
+                          "crateName": "unicode_xid",
+                          "dependencies": [],
+                          "features": [
+                            "default"
+                          ],
+                          "version": "0.2.2"
+                        },
+                        "name": "unicode-xid"
+                      }
+                    ],
+                    "features": [
+                      "clone-impls",
+                      "default",
+                      "derive",
+                      "full",
+                      "parsing",
+                      "printing",
+                      "proc-macro",
+                      "quote"
+                    ],
+                    "version": "1.0.72"
+                  },
+                  "name": "syn"
+                }
+              ],
+              "features": [],
+              "version": "1.2.0"
+            },
+            "name": "tokio-macros"
+          }
+        ],
+        "features": [
+          "macros",
+          "num_cpus",
+          "rt",
+          "rt-multi-thread",
+          "time",
+          "tokio-macros"
+        ],
+        "version": "1.6.1"
+      },
+      "name": "tokio"
+    }
+  ],
+  "features": [],
+  "version": "0.1.0"
+}

@@ -1,7 +1,7 @@
 final: prev:
 let
-  inherit (final.lib.crates-nix) mkIndex;
-  inherit (final.crates-nix) crates-io-index;
+  inherit (final.lib.crates-nix) mkIndex buildRustCrateFromSrcAndLock;
+  inherit (final.crates-nix) crates-io-index index buildRustCrate;
 in
 {
   lib = prev.lib // {
@@ -9,7 +9,8 @@ in
       import ./semver.nix { inherit (final) lib; } //
       import ./target-cfg.nix { inherit (final) lib rust; } //
       import ./crate-info.nix { inherit (final) lib fetchurl; } //
-      import ./resolve.nix { inherit (final) lib; };
+      import ./resolve.nix { inherit (final) lib; } //
+      import ./support.nix { inherit (final) lib; };
   };
 
   crates-nix = {
@@ -17,5 +18,7 @@ in
     index = mkIndex crates-io-index;
 
     buildRustCrate = final.callPackage ./build-rust-crate {};
+
+    buildRustCrateFromSrcAndLock = buildRustCrateFromSrcAndLock index buildRustCrate;
   };
 }

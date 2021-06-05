@@ -69,7 +69,9 @@ in rec {
         selectedCnt = length selected;
       in
         if selectedCnt == 0 then
-          throw "When resolving ${crateName} ${crateVersion}, dependency ${package} ${req} isn't satisfied in lock file"
+          # Cargo will omit disabled optional dependencies in lock file.
+          # throw "When resolving ${crateName} ${crateVersion}, dependency ${package} ${req} isn't satisfied in lock file"
+          null
         else if selectedCnt > 1 then
           throw "When resolving ${crateName} ${crateVersion}, dependency ${package} ${req} has multiple candidates in lock file"
         else
@@ -141,7 +143,7 @@ in rec {
       finalFeatures = final.${id};
       updateDep = { name, optional, resolved, default_features, features, ... }: final: prev: let
         depFeatures =
-          lib.optional default_features "default" ++
+          lib.optional (default_features && featureDefs.${resolved} ? default) "default" ++
           features ++
           filter (feat: feat != null)
             (map (feat: let m = match "(.*)/(.*)" feat; in
@@ -341,8 +343,7 @@ in rec {
         features = { foo = [ "bar" ]; bar = []; baz = [ "b" ]; };
         dependencies = [
           { name = "b"; resolved = "b-id"; optional = true; default_features = true; features = [ "a" ]; }
-          { name = "unused"; resolved = null; optional = true; default_features = true; features =
-          []; }
+          { name = "unused"; resolved = null; optional = true; default_features = true; features = []; }
         ];
       };
       b-id = {

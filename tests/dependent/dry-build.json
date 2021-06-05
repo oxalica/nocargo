@@ -1,0 +1,28 @@
+{
+  "crateName": "dependent",
+  "dependencies": [
+    {
+      "drv": {
+        "crateName": "semver",
+        "dependencies": [
+          {
+            "drv": {
+              "crateName": "serde",
+              "dependencies": [],
+              "features": [],
+              "version": "1.0.126"
+            },
+            "name": "serde"
+          }
+        ],
+        "features": [
+          "serde"
+        ],
+        "version": "1.0.0"
+      },
+      "name": "semver"
+    }
+  ],
+  "features": [],
+  "version": "0.1.0"
+}
