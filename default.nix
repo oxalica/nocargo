@@ -1,7 +1,7 @@
 final: prev:
 let
   inherit (final.lib.crates-nix) mkIndex buildRustCrateFromSrcAndLock;
-  inherit (final.crates-nix) crates-io-index index buildRustCrate;
+  inherit (final.crates-nix) crates-io-index index buildRustCrate toml2json;
 in
 {
   lib = prev.lib // {
@@ -17,7 +17,9 @@ in
     crates-io-index = throw "`crates-nix.crates-io-index` must be set to the path to crates.io-index";
     index = mkIndex crates-io-index;
 
-    buildRustCrate = final.callPackage ./build-rust-crate {};
+    toml2json = final.callPackage ./toml2json {};
+
+    buildRustCrate = final.callPackage ./build-rust-crate { inherit toml2json; };
 
     buildRustCrateFromSrcAndLock = buildRustCrateFromSrcAndLock {
       inherit index buildRustCrate;

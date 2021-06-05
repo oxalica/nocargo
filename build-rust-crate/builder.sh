@@ -17,10 +17,6 @@ buildFlagsArray=(
     -C metadata="$rustcMeta"
 )
 
-for feat in $features; do
-    buildFlagsArray+=(--cfg "feature=\"$feat\"")
-done
-
 addExternFlags() {
     local var="$1" dep name libBasename closure lib
     shift
@@ -58,7 +54,12 @@ configurePhase() {
     # Target auto-discovery.
     # https://doc.rust-lang.org/cargo/guide/project-layout.html
 
-    yj -tj <Cargo.toml >Cargo.toml.json
+    toml2json <Cargo.toml >Cargo.toml.json
+
+    edition="$(jq --raw-output '.package.edition // ""' Cargo.toml.json)"
+    if [[ -n "$edition" ]]; then
+        commonBuildFlagsArray+=(--edition "$edition")
+    fi
 
     buildRs="$(jq --raw-output '.package.build // ""')"
     if [[ -z "$buildRs" && -e build.rs ]]; then
@@ -73,6 +74,7 @@ configurePhase() {
         libSrc=src/lib.rs
     fi
 
+    # https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
     export CARGO_MANIFEST_DIR="$(pwd)"
     export CARGO_PKG_NAME="$crateName"
     export CARGO_PKG_VERSION="$version"
@@ -106,13 +108,13 @@ configurePhase() {
         echo "Invalid version: $version"
     fi
 
+    # Features. Also enabled for build script.
+    for feat in $features; do
+        commonBuildFlagsArray+=(--cfg "feature=\"$feat\"")
+    done
+
     # Dependencies.
     addExternFlags buildFlagsArray $dependencies
-
-    edition="$(jq --raw-output '.package.edition // ""' Cargo.toml.json)"
-    if [[ -n "$edition" ]]; then
-        buildFlagsArray+=(--edition "$edition")
-    fi
 
     if [[ -n "$libSrc" ]]; then
         libCrateType="$(jq --raw-output '.lib."crate-type" // ["lib"] | join(",")' Cargo.toml.json)"
@@ -126,7 +128,6 @@ configurePhase() {
         for dep in $dependencies; do
             local name libPrefix closure
             IFS=: read name libPrefix closure <<<"$dep"
-            depPath="${dep##*:}"
             cp --no-dereference -t $depsClosure $closure/* 2>/dev/null || true
             ln -st $depsClosure $(dirname $libPrefix)/* 2>/dev/null || true
         done
@@ -150,7 +151,7 @@ configurePhase() {
             export RUSTC_BACKTRACE=1
             export OUT_DIR="$buildOutDir"
             for feat in $features; do
-                export CARGO_FEATURE_$feat=1
+                export "CARGO_FEATURE_${feat//-/_}"=1
             done
             "$buildScriptDir/build_script_build" | tee "$buildScriptDir/output"
         )

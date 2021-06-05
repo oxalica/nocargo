@@ -1,4 +1,4 @@
-{ lib, stdenv, buildPackages, rust, yj, jq }:
+{ lib, stdenv, buildPackages, rust, toml2json, jq }:
 { crateName
 , version
 , src
@@ -10,6 +10,8 @@
 , ...
 }@args:
 let
+  toCrateName = lib.replaceStrings [ "-" ] [ "_" ];
+
   mkRustcMeta = dependencies: features: let
     deps = lib.concatMapStrings (dep: dep.drv.rustcMeta) dependencies;
     feats = lib.concatStringsSep ";" features;
@@ -19,7 +21,7 @@ let
 
   # Extensions are not included here.
   mkDeps = map ({ name, drv, ... }:
-    "${name}:${drv}/lib/lib${drv.crateName}-${drv.rustcMeta}:${drv.dev}/nix-support/rust-deps-closure");
+    "${toCrateName name}:${drv}/lib/lib${drv.crateName}-${drv.rustcMeta}:${drv.dev}/nix-support/rust-deps-closure");
 
 in
 stdenv.mkDerivation ({
@@ -32,10 +34,10 @@ stdenv.mkDerivation ({
   buildRustcMeta = mkRustcMeta buildDependencies [];
   rustcMeta = mkRustcMeta dependencies features;
 
-  rustcBuildTarget = rust.toRustTarget stdenv.buildPlatform;
-  rustcHostTarget = rust.toRustTarget stdenv.hostPlatform;
+  rustBuildTarget = rust.toRustTarget stdenv.buildPlatform;
+  rustHostTarget = rust.toRustTarget stdenv.hostPlatform;
 
-  nativeBuildInputs = [ yj jq ] ++ nativeBuildInputs;
+  nativeBuildInputs = [ toml2json jq ] ++ nativeBuildInputs;
 
   BUILD_RUSTC = "${buildPackages.buildPackages.rustc}/bin/rustc";
   RUSTC = "${buildPackages.rustc}/bin/rustc";
