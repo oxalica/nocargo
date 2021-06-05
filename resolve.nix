@@ -109,18 +109,31 @@ in rec {
   # Note that dependent features like `foo/bar` are only available during resolution,
   # and will be removed in result set.
   #
-  # Input follows the layout of output of `resolveDepsFromLock`.
-  # rootFeatures: [ "foo" "bar/baz" ]
-  resolveFeatures = pkgSet: rootId: rootFeatures: let
+  # Returns:
+  # {
+  #   "libc 0.1.0 (https://...)" = [ "default" "foo" "bar" ];
+  # }
+  resolveFeatures = {
+  # Follows the layout of the output of `resolveDepsFromLock`.
+    pkgSet
+  # Dependency edges (`{ name, kind, resolved, ... }`) will be checked by this filter.
+  # Only edges returning `true` are considered and propagated.
+  , depFilter ? dep: true
+  # Eg. "libc 0.1.0 (https://...)"
+  , rootId
+  # Eg. [ "foo" "bar/baz" ]
+  , rootFeatures
+  }: let
 
     featureDefs = mapAttrs (id: { features, dependencies, ... }:
       features //
       listToAttrs
         (map (dep: { name = dep.name; value = []; })
-          (filter (dep: dep.optional) dependencies))
+          (filter (dep: depFilter dep && dep.optional) dependencies))
     ) pkgSet;
 
-    initialFeatures = mapAttrs (id: defs: mapAttrs (k: v: false) defs) featureDefs;
+    # initialFeatures = mapAttrs (id: defs: mapAttrs (k: v: false) defs) featureDefs;
+    initialFeatures = mapAttrs (id: info: {}) pkgSet;
 
     # Overlay of spreading <id>'s nested features into dependencies and enable optional dependencies.
     updateDepsOverlay = id: final: prev: let
@@ -151,7 +164,11 @@ in rec {
               prev.${resolved};
         };
     in
-      composeManyExtensions (map updateDep info.dependencies) final prev;
+      composeManyExtensions
+        (map updateDep
+          (filter depFilter info.dependencies))
+        final
+        prev;
 
     rootOverlay = final: prev: {
       ${rootId} = enableFeatures
@@ -166,8 +183,11 @@ in rec {
       final
       initialFeatures;
 
+    final' =
+      mapAttrs (id: feats: filter (feat: match ".*/.*" feat == null) (attrNames feats)) final;
+
   in
-    mapAttrs (id: feats: filterAttrs (k: v: match ".*/.*" k == null) feats) final;
+    final';
 
   feature-tests = { assertEq, ... }: let
     testUpdate = defs: features: expect: let
@@ -345,11 +365,10 @@ in rec {
 
   resolve-features-tests = { assertDeepEq, ... }: let
     test = pkgSet: rootId: rootFeatures: expect: let
-      resolved = resolveFeatures pkgSet rootId rootFeatures;
-      resolved' = mapAttrs (id: feats: filter (feat: feats.${feat}) (attrNames feats)) resolved;
+      resolved = resolveFeatures { inherit pkgSet rootId rootFeatures; };
       expect' = mapAttrs (id: feats: sort (a: b: a < b) feats) expect;
     in
-      assertDeepEq resolved' expect';
+      assertDeepEq resolved expect';
 
     pkgSet1 = {
       a = {
