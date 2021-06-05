@@ -107,7 +107,7 @@ rec {
           req = if isString v then v else v.version;
           features = v.features or [];
           optional = v.optional or false;
-          default_features = v.default_features or false;
+          default_features = v.default_features or true;
         });
 
     collectTargetDeps = target: { dependencies ? {}, devDependencies ? {}, buildDependencies ? {}, ... }:
@@ -140,7 +140,7 @@ rec {
           {
             name = "liboldc";
             package = "libc";
-            default_features = false;
+            default_features = true;
             features = [ ];
             kind = "normal";
             optional = false;

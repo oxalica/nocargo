@@ -47,8 +47,7 @@ stdenv.mkDerivation ({
 
 } // removeAttrs args [
   "dependencies"
+  "buildDependencies"
   "features"
   "nativeBuildInputs"
-  "dependencyDef"
-  "featureDef"
 ])

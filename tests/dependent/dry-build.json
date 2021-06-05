@@ -19,7 +19,9 @@
           }
         ],
         "features": [
-          "serde"
+          "default",
+          "serde",
+          "std"
         ],
         "version": "1.0.0"
       },

@@ -7,7 +7,10 @@
         "buildDependencies": [],
         "crateName": "libc",
         "dependencies": [],
-        "features": [],
+        "features": [
+          "cargo-build",
+          "default"
+        ],
         "version": "0.1.12"
       },
       "name": "liboldc"

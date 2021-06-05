@@ -326,7 +326,7 @@
   "tokio-app 0.1.0 ()": {
     "dependencies": [
       {
-        "default_features": false,
+        "default_features": true,
         "features": [],
         "kind": "normal",
         "name": "liboldc",
