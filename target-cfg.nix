@@ -1,25 +1,63 @@
-{ lib }:
+{ lib, rust }:
 let
   inherit (builtins) match substring stringLength length elem elemAt tryEval;
-  inherit (lib) any all;
+  inherit (lib) any all filter optional optionals concatStrings mapAttrsToList sort;
 in
 rec {
+
+  # https://github.com/rust-lang/rust/blob/9bc8c42bb2f19e745a63f3445f1ac248fb015e53/compiler/rustc_session/src/config.rs#L835
+  platformToCfgs = platform: let
+    atoms =
+      optional platform.isUnix "unix" ++
+      optional platform.isWindows "windows";
+
+    # https://doc.rust-lang.org/reference/conditional-compilation.html
+    attrs = {
+      target_arch = rust.toTargetArch platform;
+      target_endian = if platform.isLittleEndian then "little"
+        else if platform.isBigEndian then "big"
+        else throw "Unknow target_endian for ${platform.config}";
+      target_env = if platform.isNone then ""
+        else if platform.libc == "glibc" then "gnu"
+        else if platform.isMusl then "musl"
+        else throw "Unknow target_env for ${platform.config}";
+      target_family = if platform.isUnix then "unix"
+        else if platform.isWindows then "windows"
+        else null;
+      target_os = rust.toTargetOs platform;
+      target_pointer_width = if platform.is64bit then "64"
+        else if platform.is32bit then "32"
+        else throw "Unknow target_pointer_width for ${platform.config}";
+      target_vendor = platform.parsed.vendor.name;
+    };
+
+    # These features are assume to be available.
+    target_features = optionals platform.isx86 [ "fxsr" "sse" "sse2" ];
+
+  in
+    map (key: { inherit key; }) atoms ++
+    filter (kv: kv.value != null) (mapAttrsToList (key: value: { inherit key value; }) attrs) ++
+    map (value: { key = "target_feature"; inherit value; }) target_features;
+
   # cfgs: [
   #   { key = "atom1"; }
   #   { key = "atom2"; }
   #   { key = "feature"; value = "foo"; }
   #   { key = "feature"; value = "bar"; }
   # ]
-  evalCfgStr = cfgs: s:
-    evalCfgExpr cfgs (parseCfgExpr s);
+  evalTargetCfgStr = cfgs: s:
+    evalCfgExpr cfgs (parseTargetCfgExpr s);
 
   # Cargo's parse is stricter than rustc's.
   # - Must starts with `cfg(` and ends with `)`. No spaces are allowed before and after.
   # - Identifiers must follows /[A-Za-z_][A-Za-z_0-9]*/.
   # - Raw identifiers, raw strings, escapes in strings are not allowed.
   #
+  # The target can also be a simple target name like `aarch64-unknown-linux-gnu`, which will be parsed
+  # as if it's `cfg(target = "...")`.
+  #
   # https://github.com/rust-lang/cargo/blob/dcc95871605785c2c1f2279a25c6d3740301c468/crates/cargo-platform/src/cfg.rs
-  parseCfgExpr = cfg: let
+  parseTargetCfgExpr = cfg: let
     fail = reason: throw "${reason}, when parsing `${cfg}";
 
     go = { fn, values, afterComma, prev }@stack: s: let
@@ -67,13 +105,17 @@ rec {
           in
             go (stack // { afterComma = false; values = values ++ [ kv ]; }) mRest;
 
+      mSimpleTarget = match "[A-Za-z_0-9_.-]+" cfg;
+
       mCfg = match ''cfg\( *(.*)\)'' cfg;
       mCfgInner = elemAt mCfg 0;
       ret = go { fn = "cfg"; values = []; afterComma = true; prev = null; } mCfgInner;
 
     in
-      if mCfg == null then
-        fail "Cfg expr must start with `cfg(` and end with `)`"
+      if mSimpleTarget != null then
+        { key = "target"; value = cfg; }
+      else if mCfg == null then
+        fail "Cfg expr must be a simple target string, or start with `cfg(` and end with `)`"
       else if ret.prev != null then
         fail "Missing `)`"
       else if length ret.values != 1 then
@@ -93,10 +135,15 @@ rec {
 
   cfg-parser-tests = { assertEq, assertDeepEq, ... }: let
     shouldParse = cfg: expect:
-      assertDeepEq (parseCfgExpr cfg) expect;
+      assertDeepEq (parseTargetCfgExpr cfg) expect;
     shouldNotParse = cfg:
-      assertEq (tryEval (parseCfgExpr cfg)).success false;
+      assertEq (tryEval (parseTargetCfgExpr cfg)).success false;
   in {
+    cfg-parse-simple-target1 = shouldParse "thumbv8m.base-none-eabi"
+      { key = "target"; value = "thumbv8m.base-none-eabi"; };
+    cfg-parse-simple-target2 = shouldParse "aarch64-unknown-linux-gnu"
+      { key = "target"; value = "aarch64-unknown-linux-gnu"; };
+
     cfg-parse-simple1 = shouldParse "cfg(atom)" { key = "atom"; };
     cfg-parse-simple2 = shouldParse ''cfg(k = "v")'' { key = "k"; value = "v"; };
     cfg-parse-complex = shouldParse ''cfg( all ( not ( a , ) , b , all ( ) , any ( c , d = "e" ) , ) )''
@@ -143,7 +190,7 @@ rec {
       { key = "feature"; value = "foo"; }
       { key = "feature"; value = "bar"; }
     ];
-    test = cfg: expect: assertEq (evalCfgStr cfgs cfg) expect;
+    test = cfg: expect: assertEq (evalTargetCfgStr cfgs cfg) expect;
   in {
     cfg-eval-simple1 = test ''cfg(foo)'' true;
     cfg-eval-simple2 = test ''cfg(baz)'' false;
@@ -175,5 +222,42 @@ rec {
 
     cfg-eval-not1 = test ''cfg(not(foo))'' false;
     cfg-eval-not2 = test ''cfg(not(wtf))'' true;
+  };
+
+  platform-cfg-tests = { assertEq, ... }: let
+    test = config: expect: let
+      cfgs = platformToCfgs (lib.systems.elaborate config);
+      strs = map ({ key, value ? null }:
+        if value != null then "${key}=\"${value}\"\n" else "${key}\n"
+      ) cfgs;
+      got = concatStrings (sort (a: b: a < b) strs);
+    in
+      assertEq got expect;
+
+  in {
+    platform-cfg-x86_64-linux = test "x86_64-unknown-linux-gnu" ''
+      target_arch="x86_64"
+      target_endian="little"
+      target_env="gnu"
+      target_family="unix"
+      target_feature="fxsr"
+      target_feature="sse"
+      target_feature="sse2"
+      target_os="linux"
+      target_pointer_width="64"
+      target_vendor="unknown"
+      unix
+    '';
+
+    platform-cfg-aarch64-linux = test "aarch64-unknown-linux-gnu" ''
+      target_arch="aarch64"
+      target_endian="little"
+      target_env="gnu"
+      target_family="unix"
+      target_os="linux"
+      target_pointer_width="64"
+      target_vendor="unknown"
+      unix
+    '';
   };
 }
