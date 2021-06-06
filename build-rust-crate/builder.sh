@@ -18,19 +18,39 @@ buildFlagsArray=(
 )
 
 addExternFlags() {
-    local var="$1" dep name libBasename closure lib
-    shift
+    local var="$1" kind="$2" dep name binName depOut depDev value
+    shift 2
     for dep in "$@"; do
-        IFS=: read name libBasename closure <<<"$dep"
-        if [[ -e $libBasename.rlib ]]; then
-            lib=$libBasename.rlib
-        elif [[ -e $libBasename.so ]]; then
-            lib=$libBasename.so
+        IFS=: read name binName depOut depDev <<<"$dep"
+        if [[ $kind == rmeta && -e $depDev/nix-support/rust-deps-closure/$binName.rmeta ]]; then
+            value=$depDev/nix-support/rust-deps-closure/$binName.rmeta
+        elif [[ -e $depOut/lib/$binName.rlib ]]; then
+            value=$depOut/lib/$binName.rlib
+        elif [[ -e $depOut/lib/$binName.so ]]; then
+            value=$depOut/lib/$binName.so
         else
-            echo "No linkable file found for dependency: $libBasename"
+            echo "No linkable file found for dependency $binName in $depOut or $depDev"
             exit 1
         fi
-        eval "$var+=(--extern $name=$lib -L dependency=$closure)"
+        eval "$var+=(--extern $name=$value)"
+        if [[ -e $depDev/nix-support/rust-deps-closure ]]; then
+            eval "$var+=(-L dependency=$depDev/nix-support/rust-deps-closure)"
+        fi
+    done
+}
+
+collectTransDeps() {
+    local collectDir="$1" dep name binName depOut depDev closureDir
+    shift
+    mkdir -p "$collectDir"
+    for dep in "$@"; do
+        IFS=: read name binName depOut depDev <<<"$dep"
+        if [[ -e $depDev/nix-support/rust-deps-closure ]]; then
+            find -P $depDev/nix-support/rust-deps-closure -type f -print0 |
+                xargs -0 --no-run-if-empty -- ln -sft $collectDir 2>/dev/null || true
+            find -P $depDev/nix-support/rust-deps-closure -type l -print0 |
+                xargs -0 --no-run-if-empty -- cp --no-dereference --no-clobber -t $collectDir 2>/dev/null || true
+        fi
     done
 }
 
@@ -66,7 +86,7 @@ configurePhase() {
         buildRs=build.rs
     fi
     if [[ -n "$buildRs" ]]; then
-        addExternFlags buildBuildFlagsArray $buildDependencies
+        addExternFlags buildBuildFlagsArray lib $buildDependencies
     fi
 
     libSrc="$(jq --raw-output '.lib.path // ""' Cargo.toml.json)"
@@ -113,24 +133,26 @@ configurePhase() {
         commonBuildFlagsArray+=(--cfg "feature=\"$feat\"")
     done
 
-    # Dependencies.
-    addExternFlags buildFlagsArray $dependencies
-
+    # Whether the binary currently building is the final product, which doesn't need to produce metadata.
+    isFinalProduct=
     if [[ -n "$libSrc" ]]; then
         libCrateType="$(jq --raw-output '.lib."crate-type" // ["lib"] | join(",")' Cargo.toml.json)"
         if [[ "$(jq --raw-output '.lib."proc-macro" // false' Cargo.toml.json)" == true ]]; then
             libCrateType="proc-macro"
         fi
 
-        # Place transitive dependencies (symlinks) in a single directory.
-        depsClosure=$dev/nix-support/rust-deps-closure
-        mkdir -p $depsClosure
-        for dep in $dependencies; do
-            local name libPrefix closure
-            IFS=: read name libPrefix closure <<<"$dep"
-            cp --no-dereference -t $depsClosure $closure/* 2>/dev/null || true
-            ln -st $depsClosure $(dirname $libPrefix)/* 2>/dev/null || true
-        done
+        if [[ "$libCrateType" = *proc-macro* || "$libCrateType" = *dylib* ]]; then
+            isFinalProduct=1
+        fi
+
+        # Dependencies.
+        if [[ -n "$isFinalProduct" ]]; then
+            addExternFlags buildFlagsArray lib $dependencies
+        else
+            addExternFlags buildFlagsArray rmeta $dependencies
+            # Place transitive dependencies (symlinks) in a single directory.
+            collectTransDeps $dev/nix-support/rust-deps-closure $dependencies
+        fi
     fi
 
     if [[ -n "$buildRs" ]]; then
@@ -143,6 +165,8 @@ configurePhase() {
             --out-dir "$buildScriptDir" \
             --crate-name "build_script_build" \
             --crate-type bin \
+            --emit link \
+            -C embed-bitcode=no \
             "${commonBuildFlagsArray[@]}" \
             "${buildBuildFlagsArray[@]}"
 
@@ -218,21 +242,39 @@ configurePhase() {
 buildPhase() {
     runHook preBuild
 
-    mkdir -p "$out" "$dev"
-
     if [[ -n "$libSrc" ]]; then
         mkdir -p $out/lib
+        local emit=metadata,link
+        if [[ -n "$isFinalProduct" ]]; then
+            emit=link
+        fi
         runRustc "Building lib" \
             "$libSrc" \
             --out-dir $out/lib \
             --crate-name "$crateName" \
             --crate-type "$libCrateType" \
+            --emit=$emit \
+            -C embed-bitcode=no \
             -C extra-filename="-$rustcMeta" \
             "${commonBuildFlagsArray[@]}" \
             "${buildFlagsArray[@]}"
     fi
 
     runHook postBuild
+}
+
+installPhase() {
+    runHook preInstall
+    mkdir -p $out $dev
+    if [[ -z "$isFinalProduct" ]]; then
+        if [[ -n "$(echo $out/lib/*.rmeta)" ]]; then
+            mv -ft $dev/nix-support/rust-deps-closure $out/lib/*.rmeta
+        fi
+        if [[ -n "$(echo $out/lib/*)" ]]; then
+            ln -sft $dev/nix-support/rust-deps-closure $out/lib/*
+        fi
+        runHook postInstall
+    fi
 }
 
 genericBuild

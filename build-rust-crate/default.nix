@@ -19,9 +19,12 @@ let
   in
     lib.substring 0 16 (builtins.hashString "sha256" final);
 
-  # Extensions are not included here.
-  mkDeps = map ({ name, drv, ... }:
-    "${toCrateName name}:${drv}/lib/lib${drv.crateName}-${drv.rustcMeta}:${drv.dev}/nix-support/rust-deps-closure");
+  mkDeps = map ({ name, drv, ... }: lib.concatStringsSep ":" [
+    (toCrateName name)
+    "lib${drv.crateName}-${drv.rustcMeta}"
+    drv.out
+    drv.dev
+  ]);
 
 in
 stdenv.mkDerivation ({
@@ -44,8 +47,6 @@ stdenv.mkDerivation ({
 
   buildDependencies = mkDeps buildDependencies;
   dependencies = mkDeps dependencies;
-
-  dontInstall = true;
 
 } // removeAttrs args [
   "dependencies"
