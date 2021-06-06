@@ -77,6 +77,7 @@ rec {
             inherit (info) version src;
             inherit features;
             pname = info.name;
+            buildBins = if id == rootId then "*" else null;
             buildDependencies = selectDeps pkgsBuild info.dependencies features "build";
             dependencies = selectDeps pkgs info.dependencies features "normal";
           }

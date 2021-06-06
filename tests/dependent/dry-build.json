@@ -1,12 +1,15 @@
 {
+  "buildBins": "*",
   "buildDependencies": [],
   "dependencies": [
     {
       "drv": {
+        "buildBins": null,
         "buildDependencies": [],
         "dependencies": [
           {
             "drv": {
+              "buildBins": null,
               "buildDependencies": [],
               "dependencies": [],
               "features": [],

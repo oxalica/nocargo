@@ -1,8 +1,10 @@
 {
+  "buildBins": "*",
   "buildDependencies": [],
   "dependencies": [
     {
       "drv": {
+        "buildBins": null,
         "buildDependencies": [],
         "dependencies": [],
         "features": [
@@ -16,6 +18,7 @@
     },
     {
       "drv": {
+        "buildBins": null,
         "buildDependencies": [
           {
             "drv": {
@@ -31,10 +34,12 @@
         "dependencies": [
           {
             "drv": {
+              "buildBins": null,
               "buildDependencies": [],
               "dependencies": [
                 {
                   "drv": {
+                    "buildBins": null,
                     "buildDependencies": [],
                     "dependencies": [],
                     "features": [
@@ -55,6 +60,7 @@
           },
           {
             "drv": {
+              "buildBins": null,
               "buildDependencies": [],
               "dependencies": [],
               "features": [],
@@ -65,14 +71,17 @@
           },
           {
             "drv": {
+              "buildBins": null,
               "buildDependencies": [],
               "dependencies": [
                 {
                   "drv": {
+                    "buildBins": null,
                     "buildDependencies": [],
                     "dependencies": [
                       {
                         "drv": {
+                          "buildBins": null,
                           "buildDependencies": [],
                           "dependencies": [],
                           "features": [
@@ -95,14 +104,17 @@
                 },
                 {
                   "drv": {
+                    "buildBins": null,
                     "buildDependencies": [],
                     "dependencies": [
                       {
                         "drv": {
+                          "buildBins": null,
                           "buildDependencies": [],
                           "dependencies": [
                             {
                               "drv": {
+                                "buildBins": null,
                                 "buildDependencies": [],
                                 "dependencies": [],
                                 "features": [
@@ -135,14 +147,17 @@
                 },
                 {
                   "drv": {
+                    "buildBins": null,
                     "buildDependencies": [],
                     "dependencies": [
                       {
                         "drv": {
+                          "buildBins": null,
                           "buildDependencies": [],
                           "dependencies": [
                             {
                               "drv": {
+                                "buildBins": null,
                                 "buildDependencies": [],
                                 "dependencies": [],
                                 "features": [
@@ -165,14 +180,17 @@
                       },
                       {
                         "drv": {
+                          "buildBins": null,
                           "buildDependencies": [],
                           "dependencies": [
                             {
                               "drv": {
+                                "buildBins": null,
                                 "buildDependencies": [],
                                 "dependencies": [
                                   {
                                     "drv": {
+                                      "buildBins": null,
                                       "buildDependencies": [],
                                       "dependencies": [],
                                       "features": [
@@ -205,6 +223,7 @@
                       },
                       {
                         "drv": {
+                          "buildBins": null,
                           "buildDependencies": [],
                           "dependencies": [],
                           "features": [

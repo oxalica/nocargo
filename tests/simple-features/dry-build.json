@@ -1,4 +1,5 @@
 {
+  "buildBins": "*",
   "buildDependencies": [],
   "dependencies": [],
   "features": [

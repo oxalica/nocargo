@@ -9,13 +9,22 @@ commonBuildFlagsArray=(
     -C codegen-units=$NIX_BUILD_CORES
 )
 
-buildBuildFlagsArray=(
-    -C metadata="$buildRustcMeta"
-)
+buildBuildFlagsArray=( -C metadata="$buildRustcMeta" )
+libBuildFlagsArray=( -C metadata="$rustcMeta" )
+binBuildFlagsArray=( -C metadata="$rustcMeta" )
 
-buildFlagsArray=(
-    -C metadata="$rustcMeta"
-)
+declare -A binBuildFlagsMap
+
+findLinkable() {
+    if [[ -e "$1.rlib" ]]; then
+        echo "$1.rlib"
+    elif [[ -e "$1$sharedLibraryExt" ]]; then
+        echo "$1$sharedLibraryExt"
+    else
+        echo "No linkable file found for $1"
+        exit 1
+    fi
+}
 
 addExternFlags() {
     local var="$1" kind="$2" dep name binName depOut depDev value
@@ -24,13 +33,8 @@ addExternFlags() {
         IFS=: read name binName depOut depDev <<<"$dep"
         if [[ $kind == rmeta && -e $depDev/nix-support/rust-deps-closure/$binName.rmeta ]]; then
             value=$depDev/nix-support/rust-deps-closure/$binName.rmeta
-        elif [[ -e $depOut/lib/$binName.rlib ]]; then
-            value=$depOut/lib/$binName.rlib
-        elif [[ -e $depOut/lib/$binName.so ]]; then
-            value=$depOut/lib/$binName.so
         else
-            echo "No linkable file found for dependency $binName in $depOut or $depDev"
-            exit 1
+            value="$(findLinkable "$depOut/lib/$binName")"
         fi
         eval "$var+=(--extern $name=$value)"
         if [[ -e $depDev/nix-support/rust-deps-closure ]]; then
@@ -68,6 +72,55 @@ runRustc() {
     $RUSTC "$@"
 }
 
+configureBins() {
+    local name path
+    while read -r name; do
+        read -r path
+        if [[ -z "$name" ]]; then
+            echo "Name of binary target '$name' must be specified"
+            exit 1
+        fi
+        if [[ -z "$path" ]]; then
+            if [[ "$name" == "$crateName" ]]; then
+                path=src/main.rs
+            elif [[ -f src/bin/$name.rs ]]; then
+                path=src/bin/$name.rs
+            elif [[ -d src/bin/$name ]]; then
+                path=src/bin/$name/main.rs
+            else
+                echo "Failed to guess path of binary target '$name'"
+                exit 1
+            fi
+        fi
+        binBuildFlagsMap[$path]="$path --crate-name $name"
+    done < <(jq --raw-output '.bin // [] | .[] | .name, .path' Cargo.toml.json)
+
+    local autobins="$(jq '.package.autobins' Cargo.toml.json)"
+    if [[ "$autobins" != false && ( "${edition:-2015}" != 2015 || $binCnt = 0 ) ]]; then
+        if [[ -f src/main.rs ]]; then
+            name="$crateName"
+            path=src/main.rs
+            binBuildFlagsMap[$path]="$path --crate-name $name"
+        fi
+        local f
+        for f in src/bin/*; do
+            path=
+            if [[ "$f" = *.rs && -f "$f" ]]; then
+                name="${f%.rs}"
+                path="$f"
+            elif [[ -d "$f" && -e "$f/main.rs" ]]; then
+                name="$(basename "$f")"
+                path="$f/main.rs"
+            fi
+            if [[ -n "$path" && -z "${registerdPaths[$path]}" ]]; then
+                binBuildFlagsMap[$path]="$path --crate-name $name"
+            fi
+        done
+    fi
+
+    addExternFlags binBuildFlagsArray lib $dependencies
+}
+
 configurePhase() {
     runHook preConfigure
 
@@ -92,6 +145,10 @@ configurePhase() {
     libSrc="$(jq --raw-output '.lib.path // ""' Cargo.toml.json)"
     if [[ -z "$libSrc" && -e src/lib.rs ]]; then
         libSrc=src/lib.rs
+    fi
+
+    if [[ -n "$buildBins" ]]; then
+        configureBins
     fi
 
     # https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
@@ -133,23 +190,19 @@ configurePhase() {
         commonBuildFlagsArray+=(--cfg "feature=\"$feat\"")
     done
 
-    # Whether the binary currently building is the final product, which doesn't need to produce metadata.
-    isFinalProduct=
     if [[ -n "$libSrc" ]]; then
         libCrateType="$(jq --raw-output '.lib."crate-type" // ["lib"] | join(",")' Cargo.toml.json)"
-        if [[ "$(jq --raw-output '.lib."proc-macro" // false' Cargo.toml.json)" == true ]]; then
+        if [[ "$(jq --raw-output '.lib."proc-macro"' Cargo.toml.json)" == true ]]; then
             libCrateType="proc-macro"
         fi
 
-        if [[ "$libCrateType" = *proc-macro* || "$libCrateType" = *dylib* ]]; then
-            isFinalProduct=1
-        fi
-
         # Dependencies.
-        if [[ -n "$isFinalProduct" ]]; then
-            addExternFlags buildFlagsArray lib $dependencies
+        if [[ "$libCrateType" = *proc-macro* || "$libCrateType" = *dylib* ]]; then
+            # OS libraries is already the final product and doesn't need rmeta (and should not have).
+            addExternFlags libBuildFlagsArray lib $dependencies
         else
-            addExternFlags buildFlagsArray rmeta $dependencies
+            libBuildFlagsArray+=(--emit metadata)
+            addExternFlags libBuildFlagsArray rmeta $dependencies
             # Place transitive dependencies (symlinks) in a single directory.
             collectTransDeps $dev/nix-support/rust-deps-closure $dependencies
         fi
@@ -188,20 +241,20 @@ configurePhase() {
                 cargo:rerun-if-changed=*|cargo:rerun-if-env-changed=*)
                     ;;
                 cargo:rustc-link-lib=*)
-                    buildFlagsArray+=( -l "$rhs" )
+                    commonBuildFlagsArray+=( -l "$rhs" )
                     ;;
                 cargo:rustc-link-search=*)
-                    buildFlagsArray+=( -L "$rhs" )
+                    commonBuildFlagsArray+=( -L "$rhs" )
                     ;;
                 cargo:rustc-flags=*)
                     local i arg arr=( $rhs )
                     for (( i = 0; i < ${#arr[@]}; i++ )); do
                         arg="${arr[i]}"
                         if [[ "$arg" = -l || "$arg" = -L ]]; then
-                            buildFlagsArray+=( "$arg" "${arr[i + 1]}" )
+                            commonBuildFlagsArray+=( "$arg" "${arr[i + 1]}" )
                             (( i++ ))
                         elif [[ "$arg" = -l* || "$arg" = -L* ]]; then
-                            buildFlagsArray+=( "$arg" )
+                            commonBuildFlagsArray+=( "$arg" )
                         else
                             echo "Only -l and -L are allowed from build script: $line"
                             exit 1
@@ -210,9 +263,9 @@ configurePhase() {
                     ;;
                 cargo:rustc-cfg=*)
                     if [[ "$rhs" = *=* ]]; then
-                        buildFlagsArray+=(--cfg "${rhs%%=*}=\"${rhs#*=}\"")
+                        commonBuildFlagsArray+=(--cfg "${rhs%%=*}=\"${rhs#*=}\"")
                     else
-                        buildFlagsArray+=(--cfg "$rhs")
+                        commonBuildFlagsArray+=(--cfg "$rhs")
                     fi
                     ;;
                 cargo:rustc-env=*)
@@ -244,20 +297,30 @@ buildPhase() {
 
     if [[ -n "$libSrc" ]]; then
         mkdir -p $out/lib
-        local emit=metadata,link
-        if [[ -n "$isFinalProduct" ]]; then
-            emit=link
-        fi
         runRustc "Building lib" \
             "$libSrc" \
             --out-dir $out/lib \
             --crate-name "$crateName" \
             --crate-type "$libCrateType" \
-            --emit=$emit \
+            --emit=link \
             -C embed-bitcode=no \
             -C extra-filename="-$rustcMeta" \
             "${commonBuildFlagsArray[@]}" \
-            "${buildFlagsArray[@]}"
+            "${libBuildFlagsArray[@]}"
+    fi
+
+    if (( ${#binBuildFlagsMap[@]} )); then
+        local binName flags
+        for binName in "${!binBuildFlagsMap[@]}"; do
+            flags="${binBuildFlagsMap["$binName"]}"
+            runRustc "Building binary $binName" \
+                $flags \
+                --crate-type bin \
+                --out-dir $bin/bin \
+                --extern "$crateName=$(findLinkable $out/lib/lib$crateName-$rustcMeta)" \
+                "${commonBuildFlagsArray[@]}" \
+                "${binBuildFlagsArray[@]}"
+        done
     fi
 
     runHook postBuild
@@ -265,7 +328,7 @@ buildPhase() {
 
 installPhase() {
     runHook preInstall
-    mkdir -p $out $dev
+    mkdir -p $out $bin $dev/nix-support/rust-deps-closure
     if [[ -z "$isFinalProduct" ]]; then
         if [[ -n "$(echo $out/lib/*.rmeta)" ]]; then
             mv -ft $dev/nix-support/rust-deps-closure $out/lib/*.rmeta

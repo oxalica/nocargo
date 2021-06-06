@@ -8,6 +8,7 @@ let toCrateName = lib.replaceStrings [ "-" ] [ "_" ]; in
 , dependencies ? []
 , buildDependencies ? []
 , features ? []
+, buildBins ? null
 , nativeBuildInputs ? []
 , ...
 }@args:
@@ -32,7 +33,11 @@ stdenv.mkDerivation ({
   inherit crateName version src features;
 
   builder = ./builder.sh;
-  outputs = [ "out" "dev" ];
+  outputs = [ "out" "dev" "bin" ];
+
+  inherit buildBins;
+
+  sharedLibraryExt = stdenv.hostPlatform.extensions.sharedLibrary;
 
   buildRustcMeta = mkRustcMeta buildDependencies [];
   rustcMeta = mkRustcMeta dependencies features;
