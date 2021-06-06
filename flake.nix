@@ -21,7 +21,7 @@
     inherit overlay;
 
     checks."x86_64-linux" = let
-      inherit (import nixpkgs { system = "x86_64-linux"; overlays = [ overlay ]; }) lib crates-nix stdenv;
+      inherit (import nixpkgs { system = "x86_64-linux"; overlays = [ overlay ]; }) lib pkgs;
 
       assertEqMsg = msg: lhs: rhs: {
         assertion = lhs == rhs;
@@ -48,12 +48,24 @@
         lib.crates-nix.cfg-parser-tests assertFns //
         lib.crates-nix.platform-cfg-tests assertFns //
         lib.crates-nix.feature-tests assertFns //
-        lib.crates-nix.resolve-deps-tests assertFns crates-nix //
+        lib.crates-nix.resolve-deps-tests assertFns pkgs.crates-nix //
         lib.crates-nix.resolve-features-tests assertFns //
         lib.crates-nix.crate-info-from-toml-tests assertFns //
-        lib.crates-nix.build-from-src-dry-tests assertFns { inherit crates-nix stdenv; };
+        lib.crates-nix.build-from-src-dry-tests assertFns { inherit (pkgs) crates-nix stdenv; };
 
-      checkDrvs = {};
+      checkDrvs = let
+        mkHelloWorld = name: drv: pkgs.runCommand "check-${drv.name}" {} ''
+          name="${name}"
+          name="''${name//-/_}"
+          got="$(${drv.bin}/bin/$name)"
+          expect="Hello, world!"
+          echo "Got   : $got"
+          echo "Expect: $got"
+          [[ "$got" == "$expect" ]]
+          touch $out
+        '';
+      in
+        lib.mapAttrs mkHelloWorld (import ./tests { inherit pkgs; });
 
       failedAssertions =
         lib.filter (msg: msg != null) (
