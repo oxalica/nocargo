@@ -1,11 +1,11 @@
 final: prev:
 let
-  inherit (final.lib.crates-nix) mkIndex buildRustCrateFromSrcAndLock;
-  inherit (final.crates-nix) crates-io-index index buildRustCrate toml2json;
+  inherit (final.lib.nocargo) mkIndex buildRustCrateFromSrcAndLock;
+  inherit (final.nocargo) crates-io-index index buildRustCrate toml2json;
 in
 {
   lib = prev.lib // {
-    crates-nix =
+    nocargo =
       import ./semver.nix { inherit (final) lib; } //
       import ./target-cfg.nix { inherit (final) lib rust; } //
       import ./crate-info.nix { inherit (final) lib fetchurl; } //
@@ -13,8 +13,8 @@ in
       import ./support.nix { inherit (final) lib; };
   };
 
-  crates-nix = {
-    crates-io-index = throw "`crates-nix.crates-io-index` must be set to the path to crates.io-index";
+  nocargo = {
+    crates-io-index = throw "`nocargo.crates-io-index` must be set to the path to crates.io-index";
     index = mkIndex crates-io-index;
 
     toml2json = final.callPackage ./toml2json {};

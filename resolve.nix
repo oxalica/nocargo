@@ -3,7 +3,7 @@ let
   inherit (builtins) readFile match fromTOML fromJSON toJSON;
   inherit (lib)
     foldl' foldr mapAttrs attrNames filterAttrs listToAttrs filter elemAt length optional sort composeManyExtensions;
-  inherit (lib.crates-nix) parseSemverReq mkCrateInfoFromCargoToml getCrateInfoFromIndex;
+  inherit (lib.nocargo) parseSemverReq mkCrateInfoFromCargoToml getCrateInfoFromIndex;
 in rec {
 
   # Resolve the dependencies graph based on lock file.
@@ -232,7 +232,7 @@ in rec {
     feature-cycle3 = testUpdate defs [ "a" ] [ "a" "b" "c" ];
   });
 
-  resolve-deps-tests = { assertDeepEq, ... }: crates-nix: {
+  resolve-deps-tests = { assertDeepEq, ... }: nocargo: {
     resolve-deps-simple = let
       index = {
         libc."0.1.12" = { name = "libc"; version = "0.1.12"; dependencies = []; };
@@ -313,7 +313,7 @@ in rec {
       info = mkCrateInfoFromCargoToml cargoToml "<src>";
       getCrateInfo = args:
         if args ? source then
-          getCrateInfoFromIndex crates-nix.index args
+          getCrateInfoFromIndex nocargo.index args
         else
           assert args.name == "tokio-app";
           info;

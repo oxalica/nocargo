@@ -11,7 +11,7 @@
     overlay = final: prev: let
       out = import ./. final prev;
       out' = out // {
-        crates-nix = out.crates-nix // {
+        nocargo = out.nocargo // {
           inherit crates-io-index;
         };
       };
@@ -44,14 +44,14 @@
       assertFns = { inherit assertEq assertEqMsg assertDeepEq; };
 
       assertions =
-        lib.crates-nix.version-req-tests assertFns //
-        lib.crates-nix.cfg-parser-tests assertFns //
-        lib.crates-nix.platform-cfg-tests assertFns //
-        lib.crates-nix.feature-tests assertFns //
-        lib.crates-nix.resolve-deps-tests assertFns pkgs.crates-nix //
-        lib.crates-nix.resolve-features-tests assertFns //
-        lib.crates-nix.crate-info-from-toml-tests assertFns //
-        lib.crates-nix.build-from-src-dry-tests assertFns { inherit (pkgs) crates-nix stdenv; };
+        lib.nocargo.version-req-tests assertFns //
+        lib.nocargo.cfg-parser-tests assertFns //
+        lib.nocargo.platform-cfg-tests assertFns //
+        lib.nocargo.feature-tests assertFns //
+        lib.nocargo.resolve-deps-tests assertFns pkgs.nocargo //
+        lib.nocargo.resolve-features-tests assertFns //
+        lib.nocargo.crate-info-from-toml-tests assertFns //
+        lib.nocargo.build-from-src-dry-tests assertFns { inherit (pkgs) nocargo stdenv; };
 
       checkDrvs = let
         mkHelloWorld = name: drv: pkgs.runCommand "check-${drv.name}" {} ''

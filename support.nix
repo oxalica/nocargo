@@ -2,7 +2,7 @@
 let
   inherit (builtins) fromTOML fromJSON;
   inherit (lib) readFile mapAttrs filter replaceStrings elem id;
-  inherit (lib.crates-nix)
+  inherit (lib.nocargo)
     mkCrateInfoFromCargoToml getCrateInfoFromIndex resolveDepsFromLock resolveFeatures
     platformToCfgs evalTargetCfgStr;
 in
@@ -88,9 +88,9 @@ rec {
     in
       pkgs.${rootId};
 
-  build-from-src-dry-tests = { assertDeepEq, ... }: { crates-nix, stdenv }: let
+  build-from-src-dry-tests = { assertDeepEq, ... }: { nocargo, stdenv }: let
     buildRustCrateFromSrcAndLock' = buildRustCrateFromSrcAndLock {
-      inherit (crates-nix) index;
+      inherit (nocargo) index;
       inherit stdenv;
       buildRustCrate = args: removeAttrs args [ "src" ];
     };
