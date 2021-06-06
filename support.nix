@@ -57,14 +57,12 @@ rec {
             kind == selectKind && (optional -> elem name features))
           deps);
 
-      mkCrateName = replaceStrings [ "-" ] [ "_" ];
-
       pkgsBuild = mapAttrs (id: features: let info = pkgSet.${id}; in
         if features != null then
           buildRustCrate {
             inherit (info) version src;
             inherit features;
-            crateName = mkCrateName info.name;
+            pname = info.name;
             buildDependencies = selectDeps pkgsBuild info.dependencies features "build";
             # Build dependency's normal dependency is still build dependency.
             dependencies = selectDeps pkgsBuild info.dependencies features "normal";
@@ -78,7 +76,7 @@ rec {
           buildRustCrate {
             inherit (info) version src;
             inherit features;
-            crateName = mkCrateName info.name;
+            pname = info.name;
             buildDependencies = selectDeps pkgsBuild info.dependencies features "build";
             dependencies = selectDeps pkgs info.dependencies features "normal";
           }

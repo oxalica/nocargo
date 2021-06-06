@@ -1,5 +1,7 @@
 { lib, stdenv, buildPackages, rust, toml2json, jq }:
-{ crateName
+let toCrateName = lib.replaceStrings [ "-" ] [ "_" ]; in
+{ pname
+, crateName ? toCrateName pname
 , version
 , src
 # [ { name = "foo"; drv = <derivation>; } ]
@@ -10,8 +12,6 @@
 , ...
 }@args:
 let
-  toCrateName = lib.replaceStrings [ "-" ] [ "_" ];
-
   mkRustcMeta = dependencies: features: let
     deps = lib.concatMapStrings (dep: dep.drv.rustcMeta) dependencies;
     feats = lib.concatStringsSep ";" features;
@@ -28,7 +28,7 @@ let
 
 in
 stdenv.mkDerivation ({
-  pname = "rust_${crateName}";
+  pname = "rust_${pname}";
   inherit crateName version src features;
 
   builder = ./builder.sh;
@@ -49,6 +49,7 @@ stdenv.mkDerivation ({
   dependencies = mkDeps dependencies;
 
 } // removeAttrs args [
+  "pname"
   "dependencies"
   "buildDependencies"
   "features"

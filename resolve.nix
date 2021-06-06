@@ -34,10 +34,7 @@ in rec {
       info = getCrateInfo args;
       candidates = map findPkgId dependencies;
 
-      # Disambiguous.
-      crateName = name;
-      crateVersion = version;
-
+      id = pkgId args;
       resolvedDependencies =
         map (dep: dep // {
           resolved = selectDep candidates dep;
@@ -57,9 +54,9 @@ in rec {
         candidateCnt = length candidates;
       in
         if candidateCnt == 0 then
-          throw "When resolving ${crateName} ${crateVersion}, locked dependency `${key}` not found"
+          throw "When resolving ${id}, locked dependency `${key}` not found"
         else if candidateCnt > 1 then
-          throw "When resolving ${crateName} ${crateVersion}, locked dependency `${key}` is ambiguous"
+          throw "When resolving ${id}, locked dependency `${key}` is ambiguous"
         else
           elemAt candidates 0;
 
@@ -70,10 +67,10 @@ in rec {
       in
         if selectedCnt == 0 then
           # Cargo will omit disabled optional dependencies in lock file.
-          # throw "When resolving ${crateName} ${crateVersion}, dependency ${package} ${req} isn't satisfied in lock file"
+          # throw "When resolving ${pkgName} ${crateVersion}, dependency ${package} ${req} isn't satisfied in lock file"
           null
         else if selectedCnt > 1 then
-          throw "When resolving ${crateName} ${crateVersion}, dependency ${package} ${req} has multiple candidates in lock file"
+          throw "When resolving ${id}, dependency ${package} ${req} has multiple candidates in lock file"
         else
           pkgId (elemAt selected 0);
 

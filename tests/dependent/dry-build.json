@@ -1,18 +1,16 @@
 {
   "buildDependencies": [],
-  "crateName": "dependent",
   "dependencies": [
     {
       "drv": {
         "buildDependencies": [],
-        "crateName": "semver",
         "dependencies": [
           {
             "drv": {
               "buildDependencies": [],
-              "crateName": "serde",
               "dependencies": [],
               "features": [],
+              "pname": "serde",
               "version": "1.0.126"
             },
             "name": "serde"
@@ -23,11 +21,13 @@
           "serde",
           "std"
         ],
+        "pname": "semver",
         "version": "1.0.0"
       },
       "name": "semver"
     }
   ],
   "features": [],
+  "pname": "dependent",
   "version": "0.1.0"
 }

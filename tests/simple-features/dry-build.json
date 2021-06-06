@@ -1,10 +1,10 @@
 {
   "buildDependencies": [],
-  "crateName": "simple_features",
   "dependencies": [],
   "features": [
     "a",
     "default"
   ],
+  "pname": "simple-features",
   "version": "0.1.0"
 }

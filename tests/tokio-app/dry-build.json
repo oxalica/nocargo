@@ -1,16 +1,15 @@
 {
   "buildDependencies": [],
-  "crateName": "tokio_app",
   "dependencies": [
     {
       "drv": {
         "buildDependencies": [],
-        "crateName": "libc",
         "dependencies": [],
         "features": [
           "cargo-build",
           "default"
         ],
+        "pname": "libc",
         "version": "0.1.12"
       },
       "name": "liboldc"
@@ -21,36 +20,35 @@
           {
             "drv": {
               "buildDependencies": [],
-              "crateName": "autocfg",
               "dependencies": [],
               "features": [],
+              "pname": "autocfg",
               "version": "1.0.1"
             },
             "name": "autocfg"
           }
         ],
-        "crateName": "tokio",
         "dependencies": [
           {
             "drv": {
               "buildDependencies": [],
-              "crateName": "num_cpus",
               "dependencies": [
                 {
                   "drv": {
                     "buildDependencies": [],
-                    "crateName": "libc",
                     "dependencies": [],
                     "features": [
                       "default",
                       "std"
                     ],
+                    "pname": "libc",
                     "version": "0.2.95"
                   },
                   "name": "libc"
                 }
               ],
               "features": [],
+              "pname": "num_cpus",
               "version": "1.13.0"
             },
             "name": "num_cpus"
@@ -58,9 +56,9 @@
           {
             "drv": {
               "buildDependencies": [],
-              "crateName": "pin_project_lite",
               "dependencies": [],
               "features": [],
+              "pname": "pin-project-lite",
               "version": "0.2.6"
             },
             "name": "pin-project-lite"
@@ -68,21 +66,19 @@
           {
             "drv": {
               "buildDependencies": [],
-              "crateName": "tokio_macros",
               "dependencies": [
                 {
                   "drv": {
                     "buildDependencies": [],
-                    "crateName": "proc_macro2",
                     "dependencies": [
                       {
                         "drv": {
                           "buildDependencies": [],
-                          "crateName": "unicode_xid",
                           "dependencies": [],
                           "features": [
                             "default"
                           ],
+                          "pname": "unicode-xid",
                           "version": "0.2.2"
                         },
                         "name": "unicode-xid"
@@ -92,6 +88,7 @@
                       "default",
                       "proc-macro"
                     ],
+                    "pname": "proc-macro2",
                     "version": "1.0.27"
                   },
                   "name": "proc-macro2"
@@ -99,21 +96,19 @@
                 {
                   "drv": {
                     "buildDependencies": [],
-                    "crateName": "quote",
                     "dependencies": [
                       {
                         "drv": {
                           "buildDependencies": [],
-                          "crateName": "proc_macro2",
                           "dependencies": [
                             {
                               "drv": {
                                 "buildDependencies": [],
-                                "crateName": "unicode_xid",
                                 "dependencies": [],
                                 "features": [
                                   "default"
                                 ],
+                                "pname": "unicode-xid",
                                 "version": "0.2.2"
                               },
                               "name": "unicode-xid"
@@ -123,6 +118,7 @@
                             "default",
                             "proc-macro"
                           ],
+                          "pname": "proc-macro2",
                           "version": "1.0.27"
                         },
                         "name": "proc-macro2"
@@ -132,6 +128,7 @@
                       "default",
                       "proc-macro"
                     ],
+                    "pname": "quote",
                     "version": "1.0.9"
                   },
                   "name": "quote"
@@ -139,21 +136,19 @@
                 {
                   "drv": {
                     "buildDependencies": [],
-                    "crateName": "syn",
                     "dependencies": [
                       {
                         "drv": {
                           "buildDependencies": [],
-                          "crateName": "proc_macro2",
                           "dependencies": [
                             {
                               "drv": {
                                 "buildDependencies": [],
-                                "crateName": "unicode_xid",
                                 "dependencies": [],
                                 "features": [
                                   "default"
                                 ],
+                                "pname": "unicode-xid",
                                 "version": "0.2.2"
                               },
                               "name": "unicode-xid"
@@ -163,6 +158,7 @@
                             "default",
                             "proc-macro"
                           ],
+                          "pname": "proc-macro2",
                           "version": "1.0.27"
                         },
                         "name": "proc-macro2"
@@ -170,21 +166,19 @@
                       {
                         "drv": {
                           "buildDependencies": [],
-                          "crateName": "quote",
                           "dependencies": [
                             {
                               "drv": {
                                 "buildDependencies": [],
-                                "crateName": "proc_macro2",
                                 "dependencies": [
                                   {
                                     "drv": {
                                       "buildDependencies": [],
-                                      "crateName": "unicode_xid",
                                       "dependencies": [],
                                       "features": [
                                         "default"
                                       ],
+                                      "pname": "unicode-xid",
                                       "version": "0.2.2"
                                     },
                                     "name": "unicode-xid"
@@ -194,6 +188,7 @@
                                   "default",
                                   "proc-macro"
                                 ],
+                                "pname": "proc-macro2",
                                 "version": "1.0.27"
                               },
                               "name": "proc-macro2"
@@ -203,6 +198,7 @@
                             "default",
                             "proc-macro"
                           ],
+                          "pname": "quote",
                           "version": "1.0.9"
                         },
                         "name": "quote"
@@ -210,11 +206,11 @@
                       {
                         "drv": {
                           "buildDependencies": [],
-                          "crateName": "unicode_xid",
                           "dependencies": [],
                           "features": [
                             "default"
                           ],
+                          "pname": "unicode-xid",
                           "version": "0.2.2"
                         },
                         "name": "unicode-xid"
@@ -230,12 +226,14 @@
                       "proc-macro",
                       "quote"
                     ],
+                    "pname": "syn",
                     "version": "1.0.72"
                   },
                   "name": "syn"
                 }
               ],
               "features": [],
+              "pname": "tokio-macros",
               "version": "1.2.0"
             },
             "name": "tokio-macros"
@@ -249,11 +247,13 @@
           "time",
           "tokio-macros"
         ],
+        "pname": "tokio",
         "version": "1.6.1"
       },
       "name": "tokio"
     }
   ],
   "features": [],
+  "pname": "tokio-app",
   "version": "0.1.0"
 }
