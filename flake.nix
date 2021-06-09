@@ -16,12 +16,18 @@
         };
       };
     in out';
+
+    inherit (import nixpkgs { system = "x86_64-linux"; overlays = [ overlay ]; }) lib pkgs;
+
   in {
 
     inherit overlay;
 
+    legacyPackages."x86_64-linux" = pkgs;
+
+    defaultPackage."x86_64-linux" = pkgs.nocargo.nocargo;
+
     checks."x86_64-linux" = let
-      inherit (import nixpkgs { system = "x86_64-linux"; overlays = [ overlay ]; }) lib pkgs;
 
       assertEqMsg = msg: lhs: rhs: {
         assertion = lhs == rhs;
