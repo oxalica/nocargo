@@ -40,6 +40,10 @@ let
     nativeBuildInputs = [ toml2json jq ];
     sharedLibraryExt = stdenv.hostPlatform.extensions.sharedLibrary;
 
+    profile = "release";
+    debug = 0;
+    optLevel = 3;
+
     RUSTC = "${buildPackages.rustc}/bin/rustc";
   };
 
@@ -61,9 +65,6 @@ let
 
     HOST = rust.toRustTarget stdenv.buildPlatform;
     TARGET = rust.toRustTarget stdenv.hostPlatform;
-    PROFILE = "release";
-    DEBUG = 0;
-    OPT_LEVEL = 3;
   } // commonArgs);
 
   libDrv = stdenv.mkDerivation ({

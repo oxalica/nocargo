@@ -29,6 +29,10 @@ configurePhase() {
 
     export OUT_DIR="$out/rust-support/out"
     export NUM_JOBS=$NIX_BUILD_CORES
+    export OPT_LEVEL="$optLevel"
+    export DEBUG="$debug"
+    export PROFILE="$profile"
+
     export RUSTC_BACKTRACE=1 # Make debugging easier.
 
     local line name binName depOut depDev
@@ -41,9 +45,6 @@ configurePhase() {
 
     # Other flags are set outside.
     # - CARGO_CFG_<cfg>
-    # - PROFILE
-    # - DEBUG
-    # - OPT_LEVEL
     # - HOST
     # - TARGET
     # - RUSTC

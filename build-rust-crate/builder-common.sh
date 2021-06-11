@@ -1,9 +1,20 @@
 declare -a buildFlagsArray
 buildFlagsArray+=(
     --color=always
-    -C opt-level=3
     -C codegen-units=$NIX_BUILD_CORES
 )
+
+if [[ -n "$optLevel" ]]; then
+    buildFlagsArray+=(-C opt-level="$optLevel")
+fi
+if [[ -n "$debug" ]]; then
+    buildFlagsArray+=(-C debuginfo="$debug")
+fi
+if [[ -n "$debugAssertions" ]]; then
+    buildFlagsArray+=(-C debug-assertions=yes)
+else
+    buildFlagsArray+=(-C debug-assertions=no)
+fi
 
 # Collect all transitive dependencies (symlinks).
 collectTransDeps() {
