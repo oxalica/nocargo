@@ -8,7 +8,6 @@ let toCrateName = lib.replaceStrings [ "-" ] [ "_" ]; in
 , dependencies ? []
 , buildDependencies ? []
 , features ? []
-, buildBins ? null
 , nativeBuildInputs ? []
 , ...
 }@args:
@@ -20,6 +19,9 @@ let
   in
     lib.substring 0 16 (builtins.hashString "sha256" final);
 
+  buildRustcMeta = mkRustcMeta buildDependencies [];
+  rustcMeta = mkRustcMeta dependencies [];
+
   mkDeps = map ({ name, drv, ... }: lib.concatStringsSep ":" [
     (toCrateName name)
     "lib${drv.crateName}-${drv.rustcMeta}"
@@ -27,36 +29,66 @@ let
     drv.dev
   ]);
 
+  buildDeps = mkDeps buildDependencies;
+  libDeps = mkDeps dependencies;
+
+  builderCommon = ./builder-common.sh;
+
+  commonArgs = {
+    inherit crateName version src;
+
+    nativeBuildInputs = [ toml2json jq ];
+    sharedLibraryExt = stdenv.hostPlatform.extensions.sharedLibrary;
+
+    RUSTC = "${buildPackages.rustc}/bin/rustc";
+  };
+
+  buildDrv = stdenv.mkDerivation ({
+    pname = "rust_${pname}-build";
+    name = "rust_${pname}-build-${version}";
+    builder = ./builder-build-script.sh;
+    inherit builderCommon features;
+    rustcMeta = buildRustcMeta;
+    dependencies = buildDeps;
+  } // commonArgs);
+
+  buildOutDrv = stdenv.mkDerivation ({
+    pname = "rust_${pname}-build-out";
+    name = "rust_${pname}-build-out-${version}";
+    builder = ./builder-build-script-run.sh;
+    inherit buildDrv builderCommon;
+    dependencies = buildDeps;
+
+    HOST = rust.toRustTarget stdenv.buildPlatform;
+    TARGET = rust.toRustTarget stdenv.hostPlatform;
+    PROFILE = "release";
+    DEBUG = 0;
+    OPT_LEVEL = 3;
+  } // commonArgs);
+
+  libDrv = stdenv.mkDerivation ({
+    pname = "rust_${pname}";
+    name = "rust_${pname}-${version}";
+
+    builder = ./builder-lib.sh;
+    outputs = [ "out" "dev" ];
+    inherit builderCommon buildOutDrv features rustcMeta;
+
+    dependencies = libDeps;
+
+  } // commonArgs);
+
+  binDrv = stdenv.mkDerivation ({
+    pname = "rust_${pname}-bin";
+    name = "rust_${pname}-bin-${version}";
+    builder = ./builder-bin.sh;
+    inherit builderCommon features rustcMeta libDrv;
+    dependencies = libDeps;
+  } // commonArgs);
+
 in
-stdenv.mkDerivation ({
-  pname = "rust_${pname}";
-  inherit crateName version src features;
-
-  builder = ./builder.sh;
-  outputs = [ "out" "dev" "bin" ];
-
-  inherit buildBins;
-
-  sharedLibraryExt = stdenv.hostPlatform.extensions.sharedLibrary;
-
-  buildRustcMeta = mkRustcMeta buildDependencies [];
-  rustcMeta = mkRustcMeta dependencies features;
-
-  rustBuildTarget = rust.toRustTarget stdenv.buildPlatform;
-  rustHostTarget = rust.toRustTarget stdenv.hostPlatform;
-
-  nativeBuildInputs = [ toml2json jq ] ++ nativeBuildInputs;
-
-  BUILD_RUSTC = "${buildPackages.buildPackages.rustc}/bin/rustc";
-  RUSTC = "${buildPackages.rustc}/bin/rustc";
-
-  buildDependencies = mkDeps buildDependencies;
-  dependencies = mkDeps dependencies;
-
-} // removeAttrs args [
-  "pname"
-  "dependencies"
-  "buildDependencies"
-  "features"
-  "nativeBuildInputs"
-])
+  libDrv // {
+    build = buildDrv;
+    buildOut = buildOutDrv;
+    bin = binDrv;
+  }

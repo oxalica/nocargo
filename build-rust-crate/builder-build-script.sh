@@ -1,0 +1,54 @@
+source $stdenv/setup
+source $builderCommon
+shopt -s nullglob
+
+buildFlagsArray+=( -C metadata="$rustcMeta" )
+
+dontInstall=1
+dontFixup=1
+
+configurePhase() {
+    runHook preConfigure
+
+    cargoTomlJson="$(convertCargoToml)"
+
+    buildRs="$(jq --raw-output '.package.build // ""' "$cargoTomlJson")"
+    if [[ -z "$buildRs" && -e build.rs ]]; then
+        buildRs=build.rs
+    fi
+    if [[ -z "$buildRs" ]]; then
+        echo "No build script to be built"
+        mkdir -p $out
+        exit 0
+    fi
+
+    edition="$(jq --raw-output '.package.edition // ""' "$cargoTomlJson")"
+    if [[ -n "$edition" ]]; then
+        buildFlagsArray+=(--edition "$edition")
+    fi
+
+    addFeatures buildFlagsArray $features
+    addExternFlags buildFlagsArray $dependencies
+    setCargoCommonBuildEnv "$cargoTomlJson"
+
+    runHook postConfigure
+}
+
+buildPhase() {
+    runHook preBuild
+
+    mkdir -p $out/bin
+
+    runRustc "Building build script" \
+        "$buildRs" \
+        --out-dir "$out/bin" \
+        --crate-name "build_script_build" \
+        --crate-type bin \
+        --emit link \
+        -C embed-bitcode=no \
+        "${buildFlagsArray[@]}"
+
+    runHook postBuild
+}
+
+genericBuild
