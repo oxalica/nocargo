@@ -20,7 +20,7 @@ fn main_build(_: OptBuild) -> Result<()> {
     let expr = "let \
         pkgs = (builtins.getFlake ''nocargo'').outputs.legacyPackages.${builtins.currentSystem}; \
         drv = pkgs.nocargo.buildRustCrateFromSrcAndLock { src = ./.; }; \
-        in { inherit (drv) out dev bin; }\
+        in pkgs.symlinkJoin { name = drv.name; paths = [ drv.out drv.dev drv.bin ]; }\
     ";
     let code = Command::new("nix")
         .args(&["build", "-v", "-L", "--impure", "--expr", expr])
