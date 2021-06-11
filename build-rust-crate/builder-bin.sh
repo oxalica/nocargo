@@ -17,7 +17,7 @@ addBin() {
 configurePhase() {
     runHook preConfigure
 
-    cargoTomlJson="$(convertCargoToml)"
+    convertCargoToml
 
     edition="$(jq --raw-output '.package.edition // ""' "$cargoTomlJson")"
     pkgName="$(jq --raw-output '.package.name // ""' "$cargoTomlJson")"
@@ -45,8 +45,9 @@ configurePhase() {
         addBin "$name" "$path" "$binEdition"
     done < <(jq --raw-output '.bin // [] | .[] | .name, .path, .edition' "$cargoTomlJson")
 
-    local autobins="$(jq '.package.autobins' "$cargoTomlJson")"
-    if [[ "$autobins" != false && ( "${edition:-2015}" != 2015 || $binCnt = 0 ) ]]; then
+    local autobins
+    autobins="$(jq '.package.autobins' "$cargoTomlJson")"
+    if [[ "$autobins" != false && ( "${edition:-2015}" != 2015 || ${#buildFlagsMap[@]} = 0 ) ]]; then
         if [[ -z "${buildFlagsMap["$pkgName"]}" && -f src/main.rs ]]; then
             addBin "$pkgName" src/main.rs
         fi
@@ -82,8 +83,8 @@ configurePhase() {
 
     addExternFlags buildFlagsArray $dependencies
     addFeatures buildFlagsArray $features
-    setCargoCommonBuildEnv "$cargoTomlJson"
-    importBuildOut "$buildOutDrv"
+    importBuildOut buildFlagsArray "$buildOutDrv"
+    setCargoCommonBuildEnv
 
     runHook postConfigure
 }

@@ -10,7 +10,7 @@ dontFixup=1
 configurePhase() {
     runHook preConfigure
 
-    cargoTomlJson="$(convertCargoToml)"
+    convertCargoToml
 
     buildRs="$(jq --raw-output '.package.build // ""' "$cargoTomlJson")"
     if [[ -z "$buildRs" && -e build.rs ]]; then
@@ -29,7 +29,7 @@ configurePhase() {
 
     addFeatures buildFlagsArray $features
     addExternFlags buildFlagsArray $dependencies
-    setCargoCommonBuildEnv "$cargoTomlJson"
+    setCargoCommonBuildEnv
 
     runHook postConfigure
 }

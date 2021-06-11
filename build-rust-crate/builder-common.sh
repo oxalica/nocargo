@@ -1,4 +1,5 @@
-buildFlagsArray=(
+declare -a buildFlagsArray
+buildFlagsArray+=(
     --color=always
     -C opt-level=3
     -C incremental=no
@@ -9,9 +10,9 @@ addExternFlags() {
     local var="$1" line name binName depOut depDev path
     shift
     for line in "$@"; do
-        IFS=: read name binName depOut depDev <<<"$line"
+        IFS=: read -r name binName depOut depDev <<<"$line"
 
-        if [[ -e $devDev/rust-support/is-proc-macro || -e "$depOut/lib/$binName$sharedLibraryExt" ]]; then
+        if [[ -e $depDev/rust-support/is-proc-macro || -e "$depOut/lib/$binName$sharedLibraryExt" ]]; then
             path="$depOut/lib/$binName$sharedLibraryExt"
         elif [[ -e "$depOut/lib/$binName.rlib" ]]; then
             path="$depOut/lib/$binName.rlib"
@@ -31,21 +32,21 @@ addFeatures() {
     local var="$1" feat
     shift
     for feat in "$@"; do
-        buildFlagsArray+=(--cfg "feature=\"$feat\"")
+        eval "$var"'+=(--cfg "feature=\"$feat\"")'
     done
 }
 
 importBuildOut() {
-    local drv="$1" flags
+    local var="$1" drv="$2" crateType="$3" flags
     [[ ! -e "$drv/rust-support/output" ]] && return
 
     export OUT_DIR="$drv/rust-support/out"
     mapfile -t flags <"$drv/rust-support/rustc-flags"
-    buildFlagsArray+=("${flags[@]}")
+    eval "$var"'+=("${flags[@]}")'
     source "$drv/rust-support/rustc-envs"
     if [[ "$crateType" == cdylib ]]; then
         mapfile -t flags <"$drv/rust-support/cdylib-flags"
-        buildFlagsArray+=("${flags[@]}")
+        eval "$var"'+=("${flags[@]}")'
     fi
     mkdir -p "$dev/rust-support"
     cp -t "$dev/rust-support" "$drv/rust-support/dependent-meta"
@@ -59,17 +60,16 @@ runRustc() {
 }
 
 convertCargoToml() {
-    local cargoTomlJson="$(mktemp "$(dirname "$1")/Cargo.json.XXX")"
-    toml2json <./Cargo.toml >"$cargoTomlJson"
-    echo "$cargoTomlJson"
+    local cargoToml="${1:-"$(pwd)/Cargo.toml"}"
+    cargoTomlJson="$(mktemp "$(dirname "$cargoToml")/Cargo.json.XXX")"
+    toml2json <"$cargoToml" >"$cargoTomlJson"
 }
 
 # https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
 setCargoCommonBuildEnv() {
-    local cargoTomlJson="$1"
-
     # export CARGO=
-    export CARGO_MANIFEST_DIR="$(dirname "$cargoTomlJson")"
+    CARGO_MANIFEST_DIR="$(dirname "$cargoTomlJson")"
+    export CARGO_MANIFEST_DIR
     export CARGO_CRATE_NAME="$crateName"
     export CARGO_PKG_VERSION="$version"
 

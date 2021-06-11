@@ -11,7 +11,7 @@ dontFixup=1
 configurePhase() {
     runHook preConfigure
 
-    cargoTomlJson="$(convertCargoToml)"
+    convertCargoToml
 
     libSrc="$(jq --raw-output '.lib.path // ""' "$cargoTomlJson")"
     if [[ -z "$libSrc" && -e src/lib.rs ]]; then
@@ -38,8 +38,8 @@ configurePhase() {
 
     addFeatures buildFlagsArray $features
     addExternFlags buildFlagsArray $dependencies
-
-    importBuildOut "$buildOutDrv"
+    importBuildOut buildFlagsArray "$buildOutDrv" "$crateType"
+    setCargoCommonBuildEnv
 
     runHook postConfigure
 }
@@ -65,7 +65,7 @@ collectTransDeps() {
     local collectDir="$1" line name binName depOut depDev
     shift
     for line in "$@"; do
-        IFS=: read name binName depOut depDev <<<"$line"
+        IFS=: read -r name binName depOut depDev <<<"$line"
         if [[ -n "$(echo $depDev/rust-support/deps-closure/*)" ]]; then
             cp --no-dereference --no-clobber -t $collectDir $depDev/rust-support/deps-closure/*
         fi

@@ -8,7 +8,6 @@ if [[ ! -e "$buildScriptBin" ]]; then
     exit 0
 fi
 
-dontUnpack=1
 dontPatch=1
 dontBuild=1
 dontFixup=1
@@ -18,10 +17,11 @@ preInstallPhases=runPhase
 configurePhase() {
     runHook preConfigure
 
-    cargoTomlJson="$(convertCargoToml)"
+    convertCargoToml
 
-    export CARGO_MANIFEST_DIR="$(pwd)"
-    export CARGO_MANIFEST_LINKS="$(jq '.package.links // ""' "$cargoTomlJson")"
+    CARGO_MANIFEST_DIR="$(pwd)"
+    CARGO_MANIFEST_LINKS="$(jq '.package.links // ""' "$cargoTomlJson")"
+    export CARGO_MANIFEST_DIR CARGO_MANIFEST_LINKS
 
     for feat in $features; do
         export "CARGO_FEATURE_${feat//-/_}"=1
@@ -33,7 +33,7 @@ configurePhase() {
 
     local line name binName depOut depDev
     for line in $dependencies; do
-        IFS=: read name binName depOut depDev <<<"$line"
+        IFS=: read -r name binName depOut depDev <<<"$line"
         if [[ -e "$depDev/rust-support/dependent-meta" ]]; then
             source "$depDev/rust-support/dependent-meta"
         fi
