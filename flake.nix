@@ -25,7 +25,7 @@
 
     legacyPackages."x86_64-linux" = pkgs;
 
-    defaultPackage."x86_64-linux" = pkgs.nocargo.nocargo;
+    defaultPackage."x86_64-linux" = pkgs.nocargo.nocargo.bin;
 
     checks."x86_64-linux" = let
 
