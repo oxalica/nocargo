@@ -36,10 +36,25 @@ configurePhase() {
         touch $dev/rust-support/is-proc-macro
     fi
 
+    case "$crateType" in
+        lib|rlib)
+            addExternFlags buildFlagsArray meta $dependencies
+            ;;
+        dylib|cdylib|proc-macro|bin)
+            addExternFlags buildFlagsArray link $dependencies
+            ;;
+        *)
+            echo "Unsupported crate-type: $crateType"
+            exit 1
+            ;;
+    esac
+
     addFeatures buildFlagsArray $features
-    addExternFlags buildFlagsArray $dependencies
     importBuildOut buildFlagsArray "$buildOutDrv" "$crateType"
     setCargoCommonBuildEnv
+
+    collectTransDeps $dev/rust-support/deps-closure $dependencies
+    buildFlagsArray+=(-L "dependency=$dev/rust-support/deps-closure")
 
     runHook postConfigure
 }
@@ -61,28 +76,14 @@ buildPhase() {
     runHook postBuild
 }
 
-collectTransDeps() {
-    local collectDir="$1" line name binName depOut depDev
-    shift
-    for line in "$@"; do
-        IFS=: read -r name binName depOut depDev <<<"$line"
-        if [[ -n "$(echo $depDev/rust-support/deps-closure/*)" ]]; then
-            cp --no-dereference --no-clobber -t $collectDir $depDev/rust-support/deps-closure/*
-        fi
-    done
-}
-
 installPhase() {
     runHook preInstall
 
-    mkdir -p $out $bin $dev/rust-support/deps-closure
+    mkdir -p $out $bin $dev/lib $dev/rust-support/deps-closure
 
-    # Collect all transitive dependencies (symlinks).
-    collectTransDeps $dev/rust-support/deps-closure $dependencies
-
-    if [[ -n "$(echo $out/lib/*)" ]]; then
-        ln -sft $dev/rust-support/deps-closure $out/lib/*
-    fi
+    # May be empty.
+    mv -t $dev/lib $out/lib/*.rmeta 2>/dev/null || true
+    ln -sft $dev/rust-support/deps-closure $out/lib/* $dev/lib/* 2>/dev/null || true
 
     runHook postInstall
 }

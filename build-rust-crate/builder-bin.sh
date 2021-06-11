@@ -81,10 +81,14 @@ configurePhase() {
         buildFlagsArray+=(--extern "$crateName=$libDrv/lib/$libName.rlib")
     fi
 
-    addExternFlags buildFlagsArray $dependencies
+    addExternFlags buildFlagsArray link $dependencies
     addFeatures buildFlagsArray $features
     importBuildOut buildFlagsArray "$buildOutDrv"
     setCargoCommonBuildEnv
+
+    depsClosure="$(mktemp -d)"
+    collectTransDeps "$depsClosure" $dependencies
+    buildFlagsArray+=(-L "dependency=$depsClosure")
 
     runHook postConfigure
 }

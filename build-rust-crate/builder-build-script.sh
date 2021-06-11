@@ -28,8 +28,12 @@ configurePhase() {
     fi
 
     addFeatures buildFlagsArray $features
-    addExternFlags buildFlagsArray $dependencies
+    addExternFlags buildFlagsArray link $dependencies
     setCargoCommonBuildEnv
+
+    depsClosure="$(mktemp -d)"
+    collectTransDeps "$depsClosure" $dependencies
+    buildFlagsArray+=(-L "dependency=$depsClosure")
 
     runHook postConfigure
 }

@@ -2,29 +2,42 @@ declare -a buildFlagsArray
 buildFlagsArray+=(
     --color=always
     -C opt-level=3
-    -C incremental=no
     -C codegen-units=$NIX_BUILD_CORES
 )
 
-addExternFlags() {
-    local var="$1" line name binName depOut depDev path
+# Collect all transitive dependencies (symlinks).
+collectTransDeps() {
+    local collectDir="$1" line name binName depOut depDev
+    mkdir -p "$collectDir"
     shift
     for line in "$@"; do
         IFS=: read -r name binName depOut depDev <<<"$line"
+        # May be empty.
+        cp --no-dereference --no-clobber -t $collectDir $depDev/rust-support/deps-closure/* 2>/dev/null || true
+    done
+}
 
-        if [[ -e $depDev/rust-support/is-proc-macro || -e "$depOut/lib/$binName$sharedLibraryExt" ]]; then
+addExternFlags() {
+    local var="$1" kind="$2" line name binName depOut depDev path
+    shift 2
+    for line in "$@"; do
+        IFS=: read -r name binName depOut depDev <<<"$line"
+
+        if [[ -e "$depOut/lib/$binName$sharedLibraryExt" ]]; then
             path="$depOut/lib/$binName$sharedLibraryExt"
+        elif [[ "$kind" == meta ]]; then
+            path="$depDev/lib/$binName.rmeta"
         elif [[ -e "$depOut/lib/$binName.rlib" ]]; then
             path="$depOut/lib/$binName.rlib"
-        else
+        elif [[ -e "$depOut/lib/$binName$sharedLibraryExt" ]]; then
+            path="$depOut/lib/$binName$sharedLibraryExt"
+        fi
+
+        if [[ ! -e "$path" ]]; then
             echo "No linkable file found for $line"
             exit 1
         fi
-
         eval "$var"'+=(--extern "$name=$path")'
-        if [[ -e $depDev/rust-support/deps-closure ]]; then
-            eval "$var"'+=(-L dependency="$depDev"/rust-support/deps-closure)'
-        fi
     done
 }
 
@@ -91,3 +104,4 @@ setCargoCommonBuildEnv() {
         echo "Invalid version: $version"
     fi
 }
+
