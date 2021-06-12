@@ -1,16 +1,15 @@
 {
-  "buildBins": "*",
   "buildDependencies": [],
   "dependencies": [
     {
       "drv": {
-        "buildBins": null,
         "buildDependencies": [],
         "dependencies": [],
         "features": [
           "cargo-build",
           "default"
         ],
+        "links": null,
         "pname": "libc",
         "version": "0.1.12"
       },
@@ -18,7 +17,6 @@
     },
     {
       "drv": {
-        "buildBins": null,
         "buildDependencies": [
           {
             "drv": {
@@ -34,18 +32,17 @@
         "dependencies": [
           {
             "drv": {
-              "buildBins": null,
               "buildDependencies": [],
               "dependencies": [
                 {
                   "drv": {
-                    "buildBins": null,
                     "buildDependencies": [],
                     "dependencies": [],
                     "features": [
                       "default",
                       "std"
                     ],
+                    "links": null,
                     "pname": "libc",
                     "version": "0.2.95"
                   },
@@ -53,6 +50,7 @@
                 }
               ],
               "features": [],
+              "links": null,
               "pname": "num_cpus",
               "version": "1.13.0"
             },
@@ -60,10 +58,10 @@
           },
           {
             "drv": {
-              "buildBins": null,
               "buildDependencies": [],
               "dependencies": [],
               "features": [],
+              "links": null,
               "pname": "pin-project-lite",
               "version": "0.2.6"
             },
@@ -71,22 +69,20 @@
           },
           {
             "drv": {
-              "buildBins": null,
               "buildDependencies": [],
               "dependencies": [
                 {
                   "drv": {
-                    "buildBins": null,
                     "buildDependencies": [],
                     "dependencies": [
                       {
                         "drv": {
-                          "buildBins": null,
                           "buildDependencies": [],
                           "dependencies": [],
                           "features": [
                             "default"
                           ],
+                          "links": null,
                           "pname": "unicode-xid",
                           "version": "0.2.2"
                         },
@@ -97,6 +93,7 @@
                       "default",
                       "proc-macro"
                     ],
+                    "links": null,
                     "pname": "proc-macro2",
                     "version": "1.0.27"
                   },
@@ -104,22 +101,20 @@
                 },
                 {
                   "drv": {
-                    "buildBins": null,
                     "buildDependencies": [],
                     "dependencies": [
                       {
                         "drv": {
-                          "buildBins": null,
                           "buildDependencies": [],
                           "dependencies": [
                             {
                               "drv": {
-                                "buildBins": null,
                                 "buildDependencies": [],
                                 "dependencies": [],
                                 "features": [
                                   "default"
                                 ],
+                                "links": null,
                                 "pname": "unicode-xid",
                                 "version": "0.2.2"
                               },
@@ -130,6 +125,7 @@
                             "default",
                             "proc-macro"
                           ],
+                          "links": null,
                           "pname": "proc-macro2",
                           "version": "1.0.27"
                         },
@@ -140,6 +136,7 @@
                       "default",
                       "proc-macro"
                     ],
+                    "links": null,
                     "pname": "quote",
                     "version": "1.0.9"
                   },
@@ -147,22 +144,20 @@
                 },
                 {
                   "drv": {
-                    "buildBins": null,
                     "buildDependencies": [],
                     "dependencies": [
                       {
                         "drv": {
-                          "buildBins": null,
                           "buildDependencies": [],
                           "dependencies": [
                             {
                               "drv": {
-                                "buildBins": null,
                                 "buildDependencies": [],
                                 "dependencies": [],
                                 "features": [
                                   "default"
                                 ],
+                                "links": null,
                                 "pname": "unicode-xid",
                                 "version": "0.2.2"
                               },
@@ -173,6 +168,7 @@
                             "default",
                             "proc-macro"
                           ],
+                          "links": null,
                           "pname": "proc-macro2",
                           "version": "1.0.27"
                         },
@@ -180,22 +176,20 @@
                       },
                       {
                         "drv": {
-                          "buildBins": null,
                           "buildDependencies": [],
                           "dependencies": [
                             {
                               "drv": {
-                                "buildBins": null,
                                 "buildDependencies": [],
                                 "dependencies": [
                                   {
                                     "drv": {
-                                      "buildBins": null,
                                       "buildDependencies": [],
                                       "dependencies": [],
                                       "features": [
                                         "default"
                                       ],
+                                      "links": null,
                                       "pname": "unicode-xid",
                                       "version": "0.2.2"
                                     },
@@ -206,6 +200,7 @@
                                   "default",
                                   "proc-macro"
                                 ],
+                                "links": null,
                                 "pname": "proc-macro2",
                                 "version": "1.0.27"
                               },
@@ -216,6 +211,7 @@
                             "default",
                             "proc-macro"
                           ],
+                          "links": null,
                           "pname": "quote",
                           "version": "1.0.9"
                         },
@@ -223,12 +219,12 @@
                       },
                       {
                         "drv": {
-                          "buildBins": null,
                           "buildDependencies": [],
                           "dependencies": [],
                           "features": [
                             "default"
                           ],
+                          "links": null,
                           "pname": "unicode-xid",
                           "version": "0.2.2"
                         },
@@ -245,6 +241,7 @@
                       "proc-macro",
                       "quote"
                     ],
+                    "links": null,
                     "pname": "syn",
                     "version": "1.0.72"
                   },
@@ -252,6 +249,7 @@
                 }
               ],
               "features": [],
+              "links": null,
               "pname": "tokio-macros",
               "version": "1.2.0"
             },
@@ -266,6 +264,7 @@
           "time",
           "tokio-macros"
         ],
+        "links": null,
         "pname": "tokio",
         "version": "1.6.1"
       },
@@ -273,6 +272,7 @@
     }
   ],
   "features": [],
+  "links": null,
   "pname": "tokio-app",
   "version": "0.1.0"
 }

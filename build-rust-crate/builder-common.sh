@@ -62,18 +62,26 @@ addFeatures() {
 
 importBuildOut() {
     local var="$1" drv="$2" crateType="$3" flags
-    [[ ! -e "$drv/rust-support/output" ]] && return
+    [[ ! -e "$drv/rust-support/build-stdout" ]] && return
 
-    export OUT_DIR="$drv/rust-support/out"
+    echo export OUT_DIR="$drv/rust-support/out-dir"
+    export OUT_DIR="$drv/rust-support/out-dir"
+
+    cat "$drv/rust-support/rustc-envs"
+    source "$drv/rust-support/rustc-envs"
+
     mapfile -t flags <"$drv/rust-support/rustc-flags"
     eval "$var"'+=("${flags[@]}")'
-    source "$drv/rust-support/rustc-envs"
+
     if [[ "$crateType" == cdylib ]]; then
         mapfile -t flags <"$drv/rust-support/cdylib-flags"
         eval "$var"'+=("${flags[@]}")'
     fi
-    mkdir -p "$dev/rust-support"
-    cp -t "$dev/rust-support" "$drv/rust-support/dependent-meta"
+
+    if [[ -n "${dev:-}" ]]; then
+        mkdir -p "$dev/rust-support"
+        cp -t "$dev/rust-support" "$drv/rust-support/dependent-meta"
+    fi
 }
 
 runRustc() {

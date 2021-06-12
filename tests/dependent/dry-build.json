@@ -1,18 +1,16 @@
 {
-  "buildBins": "*",
   "buildDependencies": [],
   "dependencies": [
     {
       "drv": {
-        "buildBins": null,
         "buildDependencies": [],
         "dependencies": [
           {
             "drv": {
-              "buildBins": null,
               "buildDependencies": [],
               "dependencies": [],
               "features": [],
+              "links": null,
               "pname": "serde",
               "version": "1.0.126"
             },
@@ -24,6 +22,7 @@
           "serde",
           "std"
         ],
+        "links": null,
         "pname": "semver",
         "version": "1.0.0"
       },
@@ -31,6 +30,7 @@
     }
   ],
   "features": [],
+  "links": null,
   "pname": "dependent",
   "version": "0.1.0"
 }

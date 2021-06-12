@@ -1,5 +1,4 @@
 source $stdenv/setup
-source $builderCommon
 
 buildScriptBin="$buildDrv/bin/build_script_build"
 if [[ ! -e "$buildScriptBin" ]]; then
@@ -17,17 +16,15 @@ preInstallPhases=runPhase
 configurePhase() {
     runHook preConfigure
 
-    convertCargoToml
-
     CARGO_MANIFEST_DIR="$(pwd)"
-    CARGO_MANIFEST_LINKS="$(jq '.package.links // ""' "$cargoTomlJson")"
-    export CARGO_MANIFEST_DIR CARGO_MANIFEST_LINKS
+    export CARGO_MANIFEST_DIR
+    export CARGO_MANIFEST_LINKS="$links"
 
     for feat in $features; do
         export "CARGO_FEATURE_${feat//-/_}"=1
     done
 
-    export OUT_DIR="$out/rust-support/out"
+    export OUT_DIR="$out/rust-support/out-dir"
     export NUM_JOBS=$NIX_BUILD_CORES
     export OPT_LEVEL="$optLevel"
     export DEBUG="$debug"
@@ -35,11 +32,10 @@ configurePhase() {
 
     export RUSTC_BACKTRACE=1 # Make debugging easier.
 
-    local line name binName depOut depDev
-    for line in $dependencies; do
-        IFS=: read -r name binName depOut depDev <<<"$line"
-        if [[ -e "$depDev/rust-support/dependent-meta" ]]; then
-            source "$depDev/rust-support/dependent-meta"
+    local buildOut
+    for buildOut in $linksDependencies; do
+        if [[ -e "$buildOut/rust-support/dependent-meta" ]]; then
+            source "$buildOut/rust-support/dependent-meta"
         fi
     done
 
@@ -51,14 +47,15 @@ configurePhase() {
     # - CARGO
     # - RUSTDOC
 
+    mkdir -p "$out/rust-support" "$OUT_DIR"
+
     runHook postConfigure
 }
 
 runPhase() {
     runHook preRun
     echo "Running build script"
-    mkdir -p "$out/rust-support"
-    stdoutFile="$out/rust-support/output"
+    stdoutFile="$out/rust-support/build-stdout"
     "$buildScriptBin" | tee "$stdoutFile"
     runHook postRun
 }
@@ -78,11 +75,17 @@ installPhase() {
                 rerunIfFiles+=("$rhs")
                 ;;
             cargo:rustc-link-lib=*)
-                [[ -z "$rhs" ]] || { echo "Empty link path: $line"; exit 1; }
-                rustcFlags+=("$rhs")
+                if [[ -z "$rhs" ]]; then
+                    echo "Empty link path: $line"
+                    exit 1
+                fi
+                rustcFlags+=("-l$rhs")
                 ;;
             cargo:rustc-link-search=*)
-                [[ -z "$rhs" ]] || { echo "Empty link path: $line"; exit 1; }
+                if [[ -z "$rhs" ]]; then
+                    echo "Empty link path: $line"
+                    exit 1
+                fi
                 rustcFlags+=("-L$rhs")
                 ;;
             cargo:rustc-flags=*)
@@ -100,7 +103,10 @@ installPhase() {
                         echo "Only -l and -L are allowed from build script: $line"
                         exit 1
                     fi
-                    [[ -z "$path" ]] || { echo "Empty link path: $line"; exit 1; }
+                    if [[ -z "$path" ]]; then
+                        echo "Empty link path: $line"
+                        exit 1
+                    fi
                     rustcFlags+=("$flag$path")
                 done
                 ;;
@@ -118,28 +124,40 @@ installPhase() {
                 printf "\033[0;1;33mWarning from build script\033[0m: %s" "$rhs"
                 ;;
             cargo:*=*)
-                if [[ -n "${linksNameShoutCase:-}" ]]; then
-                    local k="${rhs%%=*}" v="${rhs#*=}"
-                    dependentMeta+=("export DEP_${linksNameShoutCase}_${k@Q}=${v@Q}")
+                if [[ -n "${links:-}" ]]; then
+                    rhs="${line#*:}"
+                    local k="DEP_${links}_${rhs%%=*}" v="${rhs#*=}"
+                    k="${k^^}"
+                    k="${k//-/_}"
+                    dependentMeta+=("export ${k@Q}=${v@Q}")
                 fi
+                ;;
+            cargo:*)
+                echo "Unknown or wrong output line: $line"
+                exit 1
                 ;;
             *)
                 ;;
         esac
     done <"$stdoutFile"
 
-    (
-        IFS=$'\n'
-        # Order of paths may be non deterministic due to filesystem impl. Sort them first.
-        printf "%s" "${rerunIfFiles[*]}" | sort -o "$out/rust-support/rerun-if-files"
-        # Flags and env vars may be positional. Keep the order.
-        printf "%s" "${rustcFlags[*]}" >"$out/rust-support/rustc-flags"
-        printf "%s" "${rustcEnvs[*]}" >"$out/rust-support/rustc-envs"
-        printf "%s" "${cdylibLinkFlags[*]}" >"$out/rust-support/cdylib-link-flags"
-        printf "%s" "${dependentMeta[*]}" >"$out/rust-support/dependent-meta"
-    )
+    sortTo "$out/rust-support/rerun-if-files" "${rustcFlags[@]}"
+    sortTo "$out/rust-support/rustc-flags" "${rustcFlags[@]}"
+    sortTo "$out/rust-support/rustc-envs" "${rustcEnvs[@]}"
+    sortTo "$out/rust-support/cdylib-link-flags" "${cdylibLinkFlags[@]}"
+    sortTo "$out/rust-support/dependent-meta" "${dependentMeta[@]}"
 
     runHook postInstall
+}
+
+sortTo() {
+    local path="$1"
+    shift
+    if [[ $# = 0 ]]; then
+        touch "$path"
+    else
+        ( IFS=$'\n'; sort -o "$path" <<<"$*" )
+    fi
 }
 
 genericBuild

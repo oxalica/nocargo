@@ -74,10 +74,9 @@ rec {
       pkgs = mapAttrs (id: features: let info = pkgSet.${id}; in
         if features != null then
           buildRustCrate {
-            inherit (info) version src;
+            inherit (info) version src links;
             inherit features;
             pname = info.name;
-            buildBins = if id == rootId then "*" else null;
             buildDependencies = selectDeps pkgsBuild info.dependencies features "build";
             dependencies = selectDeps pkgs info.dependencies features "normal";
           }

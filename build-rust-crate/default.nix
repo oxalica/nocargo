@@ -4,8 +4,11 @@ let toCrateName = lib.replaceStrings [ "-" ] [ "_" ]; in
 , crateName ? toCrateName pname
 , version
 , src
+, links ? null
 # [ { name = "foo"; drv = <derivation>; } ]
 , dependencies ? []
+# Normal dependencies with non empty `links`, which will propagate `DEP_<LINKS>_<META>` environments to build script.
+, linksDependencies ? dependencies
 , buildDependencies ? []
 , features ? []
 , nativeBuildInputs ? []
@@ -67,8 +70,8 @@ let
     pname = "rust_${pname}-build-out";
     name = "rust_${pname}-build-out-${version}";
     builder = ./builder-build-script-run.sh;
-    inherit buildDrv builderCommon;
-    dependencies = buildDeps;
+    inherit buildDrv builderCommon links;
+    linksDependencies = map (dep: dep.drv.buildOutDrv) linksDependencies;
 
     HOST = rust.toRustTarget stdenv.buildPlatform;
     TARGET = rust.toRustTarget stdenv.hostPlatform;
@@ -90,7 +93,7 @@ let
     pname = "rust_${pname}-bin";
     name = "rust_${pname}-bin-${version}";
     builder = ./builder-bin.sh;
-    inherit builderCommon features rustcMeta libDrv;
+    inherit builderCommon buildOutDrv libDrv features rustcMeta;
     dependencies = libDeps;
   } // commonArgs);
 

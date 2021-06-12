@@ -1,11 +1,11 @@
 {
-  "buildBins": "*",
   "buildDependencies": [],
   "dependencies": [],
   "features": [
     "a",
     "default"
   ],
+  "links": null,
   "pname": "simple-features",
   "version": "0.1.0"
 }
