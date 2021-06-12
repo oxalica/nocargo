@@ -7,5 +7,6 @@
   ],
   "links": null,
   "pname": "simple-features",
+  "profile": "release",
   "version": "0.1.0"
 }

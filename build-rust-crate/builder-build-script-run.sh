@@ -26,8 +26,8 @@ configurePhase() {
 
     export OUT_DIR="$out/rust-support/out-dir"
     export NUM_JOBS=$NIX_BUILD_CORES
-    export OPT_LEVEL="$optLevel"
-    export DEBUG="$debug"
+    export OPT_LEVEL="${optLevel:-}"
+    export DEBUG="${debug:-}"
     export PROFILE="$profile"
 
     export RUSTC_BACKTRACE=1 # Make debugging easier.

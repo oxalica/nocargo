@@ -8,7 +8,11 @@ enum Opt {
 }
 
 #[derive(StructOpt)]
-struct OptBuild {}
+struct OptBuild {
+    // Use profile `release` instead of `dev`.
+    #[structopt(long)]
+    release: bool,
+}
 
 fn main() -> Result<()> {
     match Opt::from_args() {
@@ -16,14 +20,19 @@ fn main() -> Result<()> {
     }
 }
 
-fn main_build(_: OptBuild) -> Result<()> {
-    let expr = "let \
-        pkgs = (builtins.getFlake ''nocargo'').outputs.legacyPackages.${builtins.currentSystem}; \
-        drv = pkgs.nocargo.buildRustCrateFromSrcAndLock { src = ./.; }; \
-        in pkgs.symlinkJoin { name = drv.name; paths = [ drv.out drv.dev drv.bin ]; }\
+fn main_build(opt: OptBuild) -> Result<()> {
+    let expr = "
+        { profile }:
+        let
+            pkgs = (builtins.getFlake ''nocargo'').outputs.legacyPackages.${builtins.currentSystem};
+            drv = pkgs.nocargo.buildRustCrateFromSrcAndLock { src = ./.; inherit profile; };
+        in
+            pkgs.symlinkJoin { name = drv.name; paths = [ drv.out drv.dev drv.bin ]; }
     ";
+    let profile = if opt.release { "release" } else { "dev" };
     let code = Command::new("nix")
         .args(&["build", "-v", "-L", "--impure", "--expr", expr])
+        .args(&["--argstr", "profile", profile])
         .spawn()?
         .wait()?;
     ensure!(code.success(), "Exited with {:?}", code.code());

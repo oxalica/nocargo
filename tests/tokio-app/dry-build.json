@@ -11,6 +11,7 @@
         ],
         "links": null,
         "pname": "libc",
+        "profile": "release",
         "version": "0.1.12"
       },
       "name": "liboldc"
@@ -24,6 +25,7 @@
               "dependencies": [],
               "features": [],
               "pname": "autocfg",
+              "profile": "release",
               "version": "1.0.1"
             },
             "name": "autocfg"
@@ -44,6 +46,7 @@
                     ],
                     "links": null,
                     "pname": "libc",
+                    "profile": "release",
                     "version": "0.2.95"
                   },
                   "name": "libc"
@@ -52,6 +55,7 @@
               "features": [],
               "links": null,
               "pname": "num_cpus",
+              "profile": "release",
               "version": "1.13.0"
             },
             "name": "num_cpus"
@@ -63,6 +67,7 @@
               "features": [],
               "links": null,
               "pname": "pin-project-lite",
+              "profile": "release",
               "version": "0.2.6"
             },
             "name": "pin-project-lite"
@@ -84,6 +89,7 @@
                           ],
                           "links": null,
                           "pname": "unicode-xid",
+                          "profile": "release",
                           "version": "0.2.2"
                         },
                         "name": "unicode-xid"
@@ -95,6 +101,7 @@
                     ],
                     "links": null,
                     "pname": "proc-macro2",
+                    "profile": "release",
                     "version": "1.0.27"
                   },
                   "name": "proc-macro2"
@@ -116,6 +123,7 @@
                                 ],
                                 "links": null,
                                 "pname": "unicode-xid",
+                                "profile": "release",
                                 "version": "0.2.2"
                               },
                               "name": "unicode-xid"
@@ -127,6 +135,7 @@
                           ],
                           "links": null,
                           "pname": "proc-macro2",
+                          "profile": "release",
                           "version": "1.0.27"
                         },
                         "name": "proc-macro2"
@@ -138,6 +147,7 @@
                     ],
                     "links": null,
                     "pname": "quote",
+                    "profile": "release",
                     "version": "1.0.9"
                   },
                   "name": "quote"
@@ -159,6 +169,7 @@
                                 ],
                                 "links": null,
                                 "pname": "unicode-xid",
+                                "profile": "release",
                                 "version": "0.2.2"
                               },
                               "name": "unicode-xid"
@@ -170,6 +181,7 @@
                           ],
                           "links": null,
                           "pname": "proc-macro2",
+                          "profile": "release",
                           "version": "1.0.27"
                         },
                         "name": "proc-macro2"
@@ -191,6 +203,7 @@
                                       ],
                                       "links": null,
                                       "pname": "unicode-xid",
+                                      "profile": "release",
                                       "version": "0.2.2"
                                     },
                                     "name": "unicode-xid"
@@ -202,6 +215,7 @@
                                 ],
                                 "links": null,
                                 "pname": "proc-macro2",
+                                "profile": "release",
                                 "version": "1.0.27"
                               },
                               "name": "proc-macro2"
@@ -213,6 +227,7 @@
                           ],
                           "links": null,
                           "pname": "quote",
+                          "profile": "release",
                           "version": "1.0.9"
                         },
                         "name": "quote"
@@ -226,6 +241,7 @@
                           ],
                           "links": null,
                           "pname": "unicode-xid",
+                          "profile": "release",
                           "version": "0.2.2"
                         },
                         "name": "unicode-xid"
@@ -243,6 +259,7 @@
                     ],
                     "links": null,
                     "pname": "syn",
+                    "profile": "release",
                     "version": "1.0.72"
                   },
                   "name": "syn"
@@ -251,6 +268,7 @@
               "features": [],
               "links": null,
               "pname": "tokio-macros",
+              "profile": "release",
               "version": "1.2.0"
             },
             "name": "tokio-macros"
@@ -266,6 +284,7 @@
         ],
         "links": null,
         "pname": "tokio",
+        "profile": "release",
         "version": "1.6.1"
       },
       "name": "tokio"
@@ -274,5 +293,6 @@
   "features": [],
   "links": null,
   "pname": "tokio-app",
+  "profile": "release",
   "version": "0.1.0"
 }

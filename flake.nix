@@ -61,9 +61,8 @@
 
       checkDrvs = let
         mkHelloWorld = name: drv: pkgs.runCommand "check-${drv.name}" {} ''
-          name="${name}"
-          name="''${name//-/_}"
-          got="$(${drv.bin}/bin/$name)"
+          name="${lib.replaceStrings ["-dev" "-"] ["" "_"] name}"
+          got="$("${drv.bin}/bin/$name")"
           expect="Hello, world!"
           echo "Got   : $got"
           echo "Expect: $got"

@@ -12,6 +12,7 @@
               "features": [],
               "links": null,
               "pname": "serde",
+              "profile": "release",
               "version": "1.0.126"
             },
             "name": "serde"
@@ -24,6 +25,7 @@
         ],
         "links": null,
         "pname": "semver",
+        "profile": "release",
         "version": "1.0.0"
       },
       "name": "semver"
@@ -32,5 +34,6 @@
   "features": [],
   "links": null,
   "pname": "dependent",
+  "profile": "release",
   "version": "0.1.0"
 }

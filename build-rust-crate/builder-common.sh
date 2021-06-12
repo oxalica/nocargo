@@ -4,13 +4,13 @@ buildFlagsArray+=(
     -C codegen-units=$NIX_BUILD_CORES
 )
 
-if [[ -n "$optLevel" ]]; then
+if [[ -n "${optLevel:-}" ]]; then
     buildFlagsArray+=(-C opt-level="$optLevel")
 fi
-if [[ -n "$debug" ]]; then
+if [[ -n "${debug:-}" ]]; then
     buildFlagsArray+=(-C debuginfo="$debug")
 fi
-if [[ -n "$debugAssertions" ]]; then
+if [[ -n "${debugAssertions:-}" ]]; then
     buildFlagsArray+=(-C debug-assertions=yes)
 else
     buildFlagsArray+=(-C debug-assertions=no)
@@ -123,4 +123,3 @@ setCargoCommonBuildEnv() {
         echo "Invalid version: $version"
     fi
 }
-

@@ -13,7 +13,9 @@ rec {
     , cargoTomlFile ? src + "/Cargo.toml"
     , cargoLockFile ? src + "/Cargo.lock"
     , features ? null
+    , profile ? "release"
     }:
+    assert elem profile [ "dev" "release" ];
     let
       cargoToml = fromTOML (readFile cargoTomlFile);
       cargoLock = fromTOML (readFile cargoLockFile);
@@ -61,7 +63,7 @@ rec {
         if features != null then
           buildRustCrate {
             inherit (info) version src;
-            inherit features;
+            inherit features profile;
             pname = info.name;
             buildDependencies = selectDeps pkgsBuild info.dependencies features "build";
             # Build dependency's normal dependency is still build dependency.
@@ -75,7 +77,7 @@ rec {
         if features != null then
           buildRustCrate {
             inherit (info) version src links;
-            inherit features;
+            inherit features profile;
             pname = info.name;
             buildDependencies = selectDeps pkgsBuild info.dependencies features "build";
             dependencies = selectDeps pkgs info.dependencies features "normal";

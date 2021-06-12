@@ -12,8 +12,10 @@ let toCrateName = lib.replaceStrings [ "-" ] [ "_" ]; in
 , buildDependencies ? []
 , features ? []
 , nativeBuildInputs ? []
+, profile ? "release"
 , ...
 }@args:
+assert lib.elem profile [ "dev" "release" ];
 let
   mkRustcMeta = dependencies: features: let
     deps = lib.concatMapStrings (dep: dep.drv.rustcMeta) dependencies;
@@ -37,17 +39,28 @@ let
 
   builderCommon = ./builder-common.sh;
 
+  profileExt = if profile == "dev" then "-dev" else "";
+
   commonArgs = {
     inherit crateName version src;
 
     nativeBuildInputs = [ toml2json jq ];
     sharedLibraryExt = stdenv.hostPlatform.extensions.sharedLibrary;
 
-    profile = "release";
-    debug = 0;
-    optLevel = 3;
+    inherit profile;
+    debug = if profile == "dev" then 2 else null;
+    optLevel = if profile == "dev" then null else 3;
+    debugAssertions = profile == "dev";
 
     RUSTC = "${buildPackages.rustc}/bin/rustc";
+  };
+
+  # Build script doesn't need optimization.
+  buildScriptProfile = {
+    profile = null;
+    debug = null;
+    optLevel = null;
+    debugAssertions = false;
   };
 
   cargoCfgs = lib.mapAttrs' (key: value: {
@@ -58,17 +71,17 @@ let
   }) (lib.nocargo.platformToCfgAttrs stdenv.hostPlatform);
 
   buildDrv = stdenv.mkDerivation ({
-    pname = "rust_${pname}-build";
-    name = "rust_${pname}-build-${version}";
+    pname = "rust_${pname}${profileExt}-build";
+    name = "rust_${pname}${profileExt}-build-${version}";
     builder = ./builder-build-script.sh;
     inherit builderCommon features;
     rustcMeta = buildRustcMeta;
     dependencies = buildDeps;
-  } // commonArgs);
+  } // commonArgs // buildScriptProfile);
 
   buildOutDrv = stdenv.mkDerivation ({
-    pname = "rust_${pname}-build-out";
-    name = "rust_${pname}-build-out-${version}";
+    pname = "rust_${pname}${profileExt}-build-out";
+    name = "rust_${pname}${profileExt}-build-out-${version}";
     builder = ./builder-build-script-run.sh;
     inherit buildDrv builderCommon links;
     linksDependencies = map (dep: dep.drv.buildOutDrv) linksDependencies;
@@ -78,8 +91,8 @@ let
   } // commonArgs // cargoCfgs);
 
   libDrv = stdenv.mkDerivation ({
-    pname = "rust_${pname}";
-    name = "rust_${pname}-${version}";
+    pname = "rust_${pname}${profileExt}";
+    name = "rust_${pname}${profileExt}-${version}";
 
     builder = ./builder-lib.sh;
     outputs = [ "out" "dev" ];
@@ -90,8 +103,8 @@ let
   } // commonArgs);
 
   binDrv = stdenv.mkDerivation ({
-    pname = "rust_${pname}-bin";
-    name = "rust_${pname}-bin-${version}";
+    pname = "rust_${pname}${profileExt}-bin";
+    name = "rust_${pname}${profileExt}-bin-${version}";
     builder = ./builder-bin.sh;
     inherit builderCommon buildOutDrv libDrv features rustcMeta;
     dependencies = libDeps;
