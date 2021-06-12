@@ -1,43 +1,48 @@
 { lib, rust }:
 let
-  inherit (builtins) match substring stringLength length elem elemAt tryEval;
-  inherit (lib) any all filter optional optionals concatStrings mapAttrsToList sort;
+  inherit (builtins) match tryEval;
+  inherit (lib)
+    substring stringLength concatStrings
+    length elem elemAt any all filter optionals sort flatten isList
+    optionalAttrs filterAttrs mapAttrsToList;
 in
 rec {
 
   # https://github.com/rust-lang/rust/blob/9bc8c42bb2f19e745a63f3445f1ac248fb015e53/compiler/rustc_session/src/config.rs#L835
-  platformToCfgs = platform: let
-    atoms =
-      optional platform.isUnix "unix" ++
-      optional platform.isWindows "windows";
-
-    # https://doc.rust-lang.org/reference/conditional-compilation.html
-    attrs = {
-      target_arch = rust.toTargetArch platform;
-      target_endian = if platform.isLittleEndian then "little"
-        else if platform.isBigEndian then "big"
-        else throw "Unknow target_endian for ${platform.config}";
-      target_env = if platform.isNone then ""
-        else if platform.libc == "glibc" then "gnu"
-        else if platform.isMusl then "musl"
-        else throw "Unknow target_env for ${platform.config}";
-      target_family = if platform.isUnix then "unix"
-        else if platform.isWindows then "windows"
-        else null;
-      target_os = rust.toTargetOs platform;
-      target_pointer_width = if platform.is64bit then "64"
-        else if platform.is32bit then "32"
-        else throw "Unknow target_pointer_width for ${platform.config}";
-      target_vendor = platform.parsed.vendor.name;
-    };
-
+  # https://doc.rust-lang.org/reference/conditional-compilation.html
+  platformToCfgAttrs = platform: {
+    # Arch info.
+    # https://github.com/NixOS/nixpkgs/blob/c63d4270feed5eb6c578fe2d9398d3f6f2f96811/pkgs/build-support/rust/build-rust-crate/configure-crate.nix#L126
+    target_arch = rust.toTargetArch platform;
+    target_endian = if platform.isLittleEndian then "little"
+      else if platform.isBigEndian then "big"
+      else throw "Unknow target_endian for ${platform.config}";
+    target_env = if platform.isNone then ""
+      else if platform.libc == "glibc" then "gnu"
+      else if platform.isMusl then "musl"
+      else throw "Unknow target_env for ${platform.config}";
+    target_family = if platform.isUnix then "unix"
+      else if platform.isWindows then "windows"
+      else null;
+    target_os = rust.toTargetOs platform;
+    target_pointer_width = toString platform.parsed.cpu.bits;
+    target_vendor = platform.parsed.vendor.name;
+  } // optionalAttrs platform.isx86 {
     # These features are assume to be available.
-    target_features = optionals platform.isx86 [ "fxsr" "sse" "sse2" ];
+    target_feature = [ "fxsr" "sse" "sse2" ];
+  } // optionalAttrs platform.isUnix {
+    unix = true;
+  } // optionalAttrs platform.isWindows {
+    windows = true;
+  };
 
-  in
-    map (key: { inherit key; }) atoms ++
-    filter (kv: kv.value != null) (mapAttrsToList (key: value: { inherit key value; }) attrs) ++
-    map (value: { key = "target_feature"; inherit value; }) target_features;
+  platformToCfgs = platform:
+    flatten (
+      mapAttrsToList (key: value:
+        if value == true then { inherit key; }
+        else if isList value then map (value: { inherit key value; }) value
+        else { inherit key value; }
+      ) (platformToCfgAttrs platform));
 
   # cfgs: [
   #   { key = "atom1"; }
@@ -224,9 +229,10 @@ rec {
     cfg-eval-not2 = test ''cfg(not(wtf))'' true;
   };
 
-  platform-cfg-tests = { assertEq, ... }: let
+  platform-cfg-tests = { assertEq, assertDeepEq, ... }: let
+    inherit (lib.systems) elaborate;
     test = config: expect: let
-      cfgs = platformToCfgs (lib.systems.elaborate config);
+      cfgs = platformToCfgs (elaborate config);
       strs = map ({ key, value ? null }:
         if value != null then "${key}=\"${value}\"\n" else "${key}\n"
       ) cfgs;
@@ -235,6 +241,18 @@ rec {
       assertEq got expect;
 
   in {
+    platform-cfg-attrs-x86_64-linux = assertDeepEq (platformToCfgAttrs (elaborate "x86_64-unknown-linux-gnu")) {
+      target_arch = "x86_64";
+      target_endian = "little";
+      target_env = "gnu";
+      target_family = "unix";
+      target_feature = ["fxsr" "sse" "sse2"];
+      target_os = "linux";
+      target_pointer_width = "64";
+      target_vendor = "unknown";
+      unix = true;
+    };
+
     platform-cfg-x86_64-linux = test "x86_64-unknown-linux-gnu" ''
       target_arch="x86_64"
       target_endian="little"

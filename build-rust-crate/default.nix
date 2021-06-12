@@ -47,6 +47,13 @@ let
     RUSTC = "${buildPackages.rustc}/bin/rustc";
   };
 
+  cargoCfgs = lib.mapAttrs' (key: value: {
+    name = "CARGO_CFG_${lib.toUpper key}";
+    value = if lib.isList value then lib.concatStringsSep "," value
+      else if value == true then ""
+      else value;
+  }) (lib.nocargo.platformToCfgAttrs stdenv.hostPlatform);
+
   buildDrv = stdenv.mkDerivation ({
     pname = "rust_${pname}-build";
     name = "rust_${pname}-build-${version}";
@@ -65,7 +72,7 @@ let
 
     HOST = rust.toRustTarget stdenv.buildPlatform;
     TARGET = rust.toRustTarget stdenv.hostPlatform;
-  } // commonArgs);
+  } // commonArgs // cargoCfgs);
 
   libDrv = stdenv.mkDerivation ({
     pname = "rust_${pname}";
