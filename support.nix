@@ -32,10 +32,9 @@ rec {
 
       pkgSetRaw = resolveDepsFromLock getCrateInfo' cargoLock;
       pkgSet = mapAttrs (id: info: info // {
-        dependencies =
-          filter
-            (dep: dep.target != null -> evalTargetCfgStr hostCfgs dep.target)
-            info.dependencies;
+        dependencies = map (dep: dep // {
+          targetEnabled = dep.target != null -> evalTargetCfgStr hostCfgs dep.target;
+        }) info.dependencies;
       }) pkgSetRaw;
 
       hostCfgs = platformToCfgs stdenv.hostPlatform;
@@ -46,17 +45,17 @@ rec {
 
       resolvedBuildFeatures = resolveFeatures {
         inherit pkgSet rootId rootFeatures;
-        depFilter = dep: dep.kind == "normal" || dep.kind == "build";
+        depFilter = dep: dep.targetEnabled && dep.kind == "normal" || dep.kind == "build";
       };
       resolvedNormalFeatures = resolveFeatures {
         inherit pkgSet rootId rootFeatures;
-        depFilter = dep: dep.kind == "normal";
+        depFilter = dep: dep.targetEnabled && dep.kind == "normal";
       };
 
       selectDeps = pkgs: deps: features: selectKind:
         map (dep: { name = dep.name; drv = pkgs.${dep.resolved}; })
-          (filter ({ kind, name, optional, ... }:
-            kind == selectKind && (optional -> elem name features))
+          (filter ({ kind, name, optional, targetEnabled, ... }:
+            targetEnabled && kind == selectKind && (optional -> elem name features))
           deps);
 
       pkgsBuild = mapAttrs (id: features: let info = pkgSet.${id}; in

@@ -2,7 +2,8 @@
 let
   inherit (builtins) readFile match fromTOML fromJSON toJSON;
   inherit (lib)
-    foldl' foldr mapAttrs attrNames filterAttrs listToAttrs filter elemAt length optional sort composeManyExtensions;
+    foldl' foldr concatStringsSep listToAttrs filter elemAt length optional sort
+    mapAttrs attrNames filterAttrs composeManyExtensions;
   inherit (lib.nocargo) parseSemverReq mkCrateInfoFromCargoToml getCrateInfoFromIndex;
 in rec {
 
@@ -85,14 +86,17 @@ in rec {
 
   # Enable `features` in `prev` and do recursive update according to `defs`.
   # Optional dependencies must be included in `defs`.
-  enableFeatures = defs: prev: features:
+  enableFeatures = pkgId: defs: prev: features:
     foldl' (prev: feat: let
       m = match "(.*)/.*" feat;
       mDep = elemAt m 0;
       nexts =
         if m == null then
           # Must be defined.
-          defs.${feat}
+          defs.${feat} or (throw ''
+            Feature '${feat}' is invalid for ${pkgId}.
+            Possible features: ${concatStringsSep "," (attrNames defs)}
+          '')
         else
           # Dependent features implies optional dependency to be enabled.
           # But non-optional dependency doesn't have coresponding feature flag.
@@ -101,7 +105,7 @@ in rec {
       if prev.${feat} or false then
         prev
       else
-        enableFeatures defs (prev // { ${feat} = true; }) nexts
+        enableFeatures pkgId defs (prev // { ${feat} = true; }) nexts
     ) prev features;
 
   # Resolve all features.
@@ -128,7 +132,11 @@ in rec {
       features //
       listToAttrs
         (map (dep: { name = dep.name; value = []; })
-          (filter (dep: depFilter dep && dep.optional) dependencies))
+          # We should collect all optional dependencies for feature def, even though they are not selected.
+          # This happens on `rand@0.8.3`, whose `default` feature enables `rand_hc`, which is only available
+          # for `cfg(target_os = "emscripten")`. This feature should be still enable, though optional dependency
+          # is not.
+          (filter (dep: dep.optional) dependencies))
     ) pkgSet;
 
     # initialFeatures = mapAttrs (id: defs: mapAttrs (k: v: false) defs) featureDefs;
@@ -156,6 +164,7 @@ in rec {
             # or we'll enter an infinite recursion.
             if optional -> finalFeatures.${name} or false then
               enableFeatures
+                resolved
                 featureDefs.${resolved}
                 prev.${resolved}
                 depFeatures
@@ -171,6 +180,7 @@ in rec {
 
     rootOverlay = final: prev: {
       ${rootId} = enableFeatures
+        rootId
         featureDefs.${rootId}
         initialFeatures.${rootId}
         rootFeatures;
@@ -191,7 +201,7 @@ in rec {
   feature-tests = { assertEq, ... }: let
     testUpdate = defs: features: expect: let
       init = mapAttrs (k: v: false) defs;
-      out = enableFeatures defs init features;
+      out = enableFeatures "pkgId" defs init features;
       enabled = attrNames (filterAttrs (k: v: v) out);
     in
       assertEq enabled expect;
