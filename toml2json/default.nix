@@ -1,4 +1,4 @@
-{ stdenv, fetchurl, rustc, breakpointHook }:
+{ stdenv, fetchurl, rustc }:
 let
   fetch = name: version: sha256:
     fetchurl {
@@ -26,9 +26,10 @@ in stdenv.mkDerivation {
   buildPhase = ''
     buildFlagsArray+=(
       --color=always
-      -C codegen-units=$NIX_BUILD_CORES
       --out-dir .
       -L .
+      -C codegen-units=1
+      -C opt-level=3
     )
 
     run() {
