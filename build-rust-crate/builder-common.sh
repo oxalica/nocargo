@@ -1,9 +1,11 @@
 declare -a buildFlagsArray
 buildFlagsArray+=(
     --color=always
-    -C codegen-units=$NIX_BUILD_CORES
 )
 
+if [[ -n "${codegenUnits:-}" ]]; then
+    buildFlagsArray+=(-C codegen-units="$codegenUnits")
+fi
 if [[ -n "${optLevel:-}" ]]; then
     buildFlagsArray+=(-C opt-level="$optLevel")
 fi
