@@ -1,40 +1,29 @@
-use anyhow::{ensure, Result};
-use std::process::Command;
+use anyhow::Result;
 use structopt::StructOpt;
+
+mod build;
+mod init;
+
+pub trait App {
+    fn run(self) -> Result<()>;
+}
 
 #[derive(StructOpt)]
 enum Opt {
-    Build(OptBuild),
+    Build(build::Opt),
+    Init(init::Opt),
 }
 
-#[derive(StructOpt)]
-struct OptBuild {
-    // Use profile `release` instead of `dev`.
-    #[structopt(long)]
-    release: bool,
-}
-
-fn main() -> Result<()> {
-    match Opt::from_args() {
-        Opt::Build(opt) => main_build(opt),
+impl App for Opt {
+    fn run(self) -> Result<()> {
+        match self {
+            Self::Build(opt) => opt.run(),
+            Self::Init(opt) => opt.run(),
+        }
     }
 }
 
-fn main_build(opt: OptBuild) -> Result<()> {
-    let expr = "
-        { profile }:
-        let
-            pkgs = (builtins.getFlake ''nocargo'').outputs.legacyPackages.${builtins.currentSystem};
-            drv = pkgs.nocargo.buildRustCrateFromSrcAndLock { src = ./.; inherit profile; };
-        in
-            pkgs.symlinkJoin { name = drv.name; paths = [ drv.out drv.dev drv.bin ]; }
-    ";
-    let profile = if opt.release { "release" } else { "dev" };
-    let code = Command::new("nix")
-        .args(&["build", "-v", "-L", "--impure", "--expr", expr])
-        .args(&["--argstr", "profile", profile])
-        .spawn()?
-        .wait()?;
-    ensure!(code.success(), "Exited with {:?}", code.code());
-    Ok(())
+fn main() -> Result<()> {
+    let opt = Opt::from_args();
+    opt.run()
 }
