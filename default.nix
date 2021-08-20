@@ -13,8 +13,8 @@ in
   };
 
   nocargo = {
-    crates-io-index = throw "`nocargo.crates-io-index` must be set to the path to crates.io-index";
-    index = mkIndex final.nocargo.crates-io-index;
+    # It will be set in `flake.nix`.
+    defaultRegistries = {};
 
     nocargo = final.nocargo.buildRustCrateFromSrcAndLock { src = ./nocargo; };
 
@@ -23,7 +23,7 @@ in
     buildRustCrate = final.callPackage ./build-rust-crate { inherit (final.nocargo) toml2json; };
 
     buildRustCrateFromSrcAndLock = buildRustCrateFromSrcAndLock {
-      inherit (final.nocargo) index buildRustCrate;
+      inherit (final.nocargo) defaultRegistries buildRustCrate;
       inherit (final) stdenv;
     };
   };

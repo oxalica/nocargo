@@ -21,7 +21,16 @@ in rec {
   #   };
   # }
   resolveDepsFromLock = getCrateInfo: lock: let
-    pkgs = lock.package;
+    # For git sources, they are referenced without the locked hash part after `#`.
+    # Define: "git+https://github.com/dtolnay/semver?tag=1.0.4#ea9ea80c023ba3913b9ab0af1d983f137b4110a5"
+    # Reference: "semver 1.0.4 (git+https://github.com/dtolnay/semver?tag=1.0.4"
+    removeHash = s:
+      let m = match "([^#]*)#.*" s; in
+      if m == null then s else elemAt m 0;
+
+    pkgs = map
+      (pkg: if pkg ? source then pkg // { source = removeHash pkg.source; } else pkg)
+      lock.package;
 
     pkgId = { name, version, source ? "", ... }: "${name} ${version} (${source})";
 
@@ -57,23 +66,36 @@ in rec {
         if candidateCnt == 0 then
           throw "When resolving ${id}, locked dependency `${key}` not found"
         else if candidateCnt > 1 then
-          throw "When resolving ${id}, locked dependency `${key}` is ambiguous"
+          throw ''
+            When resolving ${id}, locked dependency `${key}` is ambiguous.
+            Found: ${toJSON candidates}
+          ''
         else
           elemAt candidates 0;
 
-      selectDep = candidates: { name, package ? name, req, ... }: let
-        checkReq = parseSemverReq req;
-        selected = filter ({ name, version, ... }: name == package && checkReq version) candidates;
-        selectedCnt = length selected;
-      in
-        if selectedCnt == 0 then
-          # Cargo will omit disabled optional dependencies in lock file.
-          # throw "When resolving ${pkgName} ${crateVersion}, dependency ${package} ${req} isn't satisfied in lock file"
-          null
-        else if selectedCnt > 1 then
-          throw "When resolving ${id}, dependency ${package} ${req} has multiple candidates in lock file"
-        else
-          pkgId (elemAt selected 0);
+      selectDep = candidates: { name, package ? name, req, source ? null, ... }@dep:
+        let
+          # Local path or git dependencies don't have version req.
+          checkReq = if req != null then parseSemverReq req else (ver: true);
+          checkSource = if source != null then s: s == source else s: true;
+
+          selected = filter
+            ({ name, version, source ? null, ... }: name == package && checkReq version && checkSource source)
+            candidates;
+
+          selectedCnt = length selected;
+        in
+          if selectedCnt == 0 then
+            # Cargo will omit disabled optional dependencies in lock file.
+            # throw "When resolving ${pkgName} ${crateVersion}, dependency ${package} ${req} isn't satisfied in lock file"
+            null
+          else if selectedCnt > 1 then
+            throw ''
+              When resolving ${id}, dependency ${package} ${if req == null then "*" else req} has multiple candidates in lock file.
+              Found: ${toJSON selected}
+            ''
+          else
+            pkgId (elemAt selected 0);
 
     in
       {
@@ -319,11 +341,13 @@ in rec {
       lock = fromTOML (readFile ./tests/tokio-app/Cargo.lock);
       expected = readFile ./tests/tokio-app/Cargo.lock.resolved.json;
 
+      registry-crates-io = nocargo.defaultRegistries."https://github.com/rust-lang/crates.io-index";
+
       cargoToml = fromTOML (readFile ./tests/tokio-app/Cargo.toml);
       info = mkCrateInfoFromCargoToml cargoToml "<src>";
       getCrateInfo = args:
         if args ? source then
-          getCrateInfoFromIndex nocargo.index args
+          getCrateInfoFromIndex registry-crates-io args
         else
           assert args.name == "tokio-app";
           info;

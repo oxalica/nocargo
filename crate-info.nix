@@ -1,6 +1,6 @@
 { lib, fetchurl }:
 let
-  inherit (builtins) readFile readDir fromJSON fromTOML;
+  inherit (builtins) readFile readDir fromJSON fromTOML toString attrNames;
   inherit (lib) stringLength splitString replaceStrings substring isString filter listToAttrs mapAttrs mapAttrsToList;
 in
 rec {
@@ -18,23 +18,28 @@ rec {
           else mkCrateInfoSet mkDownloadUrl k (readFile "${path}/${k}")
       ) (removeAttrs (readDir path) [ "config.json" ]);
   in
-    go path;
+    go path // { __registry_index = true; };
 
   # Get crate info of the given package.
   getCrateInfoFromIndex = index: { name, version, checksum ? null, ... }: let
     len = stringLength name;
-    info =
+    crate =
       if len == 1 then
-        index."1".${name}.${version} or null
+        index."1".${name} or null
       else if len == 2 then
-        index."2".${name}.${version} or null
+        index."2".${name} or null
       else if len == 3 then
-        index."3".${substring 0 1 name}.${name}.${version} or null
+        index."3".${substring 0 1 name}.${name} or null
       else
-        index.${substring 0 2 name}.${substring 2 2 name}.${name}.${version} or null;
+        index.${substring 0 2 name}.${substring 2 2 name}.${name} or null;
+    info = crate.${version} or null;
   in
-    if info == null then
-      throw "Crate ${name} ${version} is not available in index"
+    if !(index ? __registry_index) then
+      throw "Invalid registry. Do you forget `mkIndex` on registry paths?"
+    else if crate == null then
+      throw "Crate ${name} is not found in index"
+    else if info == null then
+      throw "Crate ${name} doesn't have version ${version} in index. Available versions: ${toString (attrNames crate)}"
     else if info.sha256 != null && checksum != null && info.sha256 != checksum then
       throw "Crate ${name} ${version} hash mismatched, expect ${info.sha256}, got ${checksum}"
     else
@@ -104,10 +109,29 @@ rec {
         {
           inherit name target kind;
           package = v.package or name;
-          req = if isString v then v else v.version;
+          # For path or git dependencies, `version` can be omitted.
+          req = if isString v then v else v.version or null;
           features = v.features or [];
           optional = v.optional or false;
           default_features = v.default_features or true;
+
+          # This is used for dependency resoving inside Cargo.lock.
+          source =
+            if v ? registry then
+              throw "Dependency with `registry` is not supported. Use `registry-index` with explicit URL instead."
+            else if v ? registry-index then
+              "registry+${v.registry-index}"
+            else if v ? git then
+              if v ? branch then
+                "git+${v.git}?branch=${v.branch}"
+              else if v ? tag then
+                "git+${v.git}?tag=${v.tag}"
+              else if v ? rev then
+                "git+${v.git}?rev=${v.rev}"
+              else
+                "git+${v.git}"
+            else
+              null;
         });
 
     collectTargetDeps = target: { dependencies ? {}, devDependencies ? {}, buildDependencies ? {}, ... }:
@@ -146,6 +170,7 @@ rec {
             optional = false;
             req = "0.1";
             target = null;
+            source = null;
           }
           {
             name = "tokio";
@@ -156,6 +181,7 @@ rec {
             optional = false;
             req = "1.6.1";
             target = null;
+            source = null;
           }
         ];
       };

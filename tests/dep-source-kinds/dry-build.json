@@ -1,0 +1,84 @@
+{
+  "buildDependencies": [],
+  "dependencies": [
+    {
+      "drv": {
+        "buildDependencies": [],
+        "dependencies": [],
+        "features": [
+          "default"
+        ],
+        "links": null,
+        "pname": "bitflags",
+        "profile": "release",
+        "version": "1.3.2"
+      },
+      "name": "bitflags"
+    },
+    {
+      "drv": {
+        "buildDependencies": [],
+        "dependencies": [],
+        "features": [],
+        "links": null,
+        "pname": "cfg-if",
+        "profile": "release",
+        "version": "1.0.0"
+      },
+      "name": "cfg-if2"
+    },
+    {
+      "drv": {
+        "buildDependencies": [],
+        "dependencies": [],
+        "features": [],
+        "links": null,
+        "pname": "semver",
+        "profile": "release",
+        "version": "1.0.4"
+      },
+      "name": "semver1"
+    },
+    {
+      "drv": {
+        "buildDependencies": [],
+        "dependencies": [],
+        "features": [],
+        "links": null,
+        "pname": "semver",
+        "profile": "release",
+        "version": "1.0.4"
+      },
+      "name": "semver2"
+    },
+    {
+      "drv": {
+        "buildDependencies": [],
+        "dependencies": [],
+        "features": [],
+        "links": null,
+        "pname": "semver",
+        "profile": "release",
+        "version": "1.0.4"
+      },
+      "name": "semver3"
+    },
+    {
+      "drv": {
+        "buildDependencies": [],
+        "dependencies": [],
+        "features": [],
+        "links": null,
+        "pname": "semver",
+        "profile": "release",
+        "version": "1.0.4"
+      },
+      "name": "semver4"
+    }
+  ],
+  "features": [],
+  "links": null,
+  "pname": "dep-source-kinds",
+  "profile": "release",
+  "version": "0.1.0"
+}

@@ -1,18 +1,20 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
-    crates-io-index = {
+    registry-crates-io = {
       url = "github:rust-lang/crates.io-index";
       flake = false;
     };
   };
 
-  outputs = { self, nixpkgs, crates-io-index }: let
+  outputs = { self, nixpkgs, registry-crates-io }: let
     overlay = final: prev: let
       out = import ./. final prev;
       out' = out // {
         nocargo = out.nocargo // {
-          inherit crates-io-index;
+          defaultRegistries = {
+            "https://github.com/rust-lang/crates.io-index" = out.lib.nocargo.mkIndex registry-crates-io;
+          };
         };
       };
     in out';
