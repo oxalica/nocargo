@@ -15,6 +15,7 @@ pub struct Opt {
 
 impl App for Opt {
     fn run(self) -> Result<()> {
+        eprintln!("WARN: Directly build only works when there's no external registry or git dependencies");
         let expr = "
             { profile }:
             let

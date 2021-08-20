@@ -14,8 +14,9 @@
 
 ## Usage
 
-**TODO**
+### Create a flake.nix which builds your crate.
 
 1. `cd` to your rust project root which containing `Cargo.toml` and `Cargo.lock` (workspace is not supported yet).
-2. `/path/to/bin/nocargo build` (replace the path to `nocargo` to your real one)
-   Then the library and binaries (if any) will be built to `result` using pure nix, without cargo.
+2. `/path/to/bin/nocargo init` (replace the path to `nocargo` to your real one)
+3. A `flake.nix` is generated. Check its content and `git add flake.nix`.
+4. `nix build` to build your library, and `nix build .#defaultApp.x86_64-linux` to build binaries.
