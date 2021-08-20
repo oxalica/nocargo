@@ -20,7 +20,8 @@ rec {
     target_env = if platform.isNone then ""
       else if platform.libc == "glibc" then "gnu"
       else if platform.isMusl then "musl"
-      else throw "Unknow target_env for ${platform.config}";
+      else if platform.isDarwin then "" # Empty
+      else lib.trace platform (throw "Unknow target_env for ${platform.config}");
     target_family = if platform.isUnix then "unix"
       else if platform.isWindows then "windows"
       else null;
