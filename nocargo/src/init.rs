@@ -50,6 +50,7 @@ impl<'a> DepSource<'a> {
             Dependency::Simple(_) => Ok(Self::CratesIo),
             Dependency::Detailed(detail) => {
                 match (&detail.registry, &detail.registry_index, &detail.path, &detail.git) {
+                    (None, None, None, None) => Ok(Self::CratesIo),
                     (Some(name), None, None, None) => Ok(Self::RegistryName { name }),
                     (None, Some(url), None, None) => Ok(Self::RegistryUrl { url }),
                     (None, None, Some(path), None) => Ok(Self::Path {
