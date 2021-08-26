@@ -103,7 +103,7 @@ rec {
     };
 
   # Build a simplified crate into from a parsed Cargo.toml.
-  mkCrateInfoFromCargoToml = { package , features ? {} , target ? {}, ... }@args: src: let
+  mkCrateInfoFromCargoToml = { package, features ? {}, target ? {}, ... }@args: src: let
     transDeps = target: kind:
       mapAttrsToList (name: v:
         {
@@ -113,7 +113,10 @@ rec {
           req = if isString v then v else v.version or null;
           features = v.features or [];
           optional = v.optional or false;
-          default_features = v.default_features or true;
+          # It's `default-features` in Cargo.toml, but `default_features` in index and in crate info.
+          default_features =
+            lib.warnIf (v ? default_features) "Ignoreing `default_features`. Do you means `default-features`?"
+            (v.default-features or true);
 
           # This is used for dependency resoving inside Cargo.lock.
           source =
