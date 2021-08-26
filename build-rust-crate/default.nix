@@ -4,6 +4,7 @@ let toCrateName = lib.replaceStrings [ "-" ] [ "_" ]; in
 , crateName ? toCrateName pname
 , version
 , src
+, rustc ? buildPackages.rustc
 , links ? null
 # [ { name = "foo"; drv = <derivation>; } ]
 , dependencies ? []
@@ -56,7 +57,7 @@ let
     optLevel = if profile == "dev" then null else 3;
     debugAssertions = profile == "dev";
 
-    RUSTC = "${buildPackages.rustc}/bin/rustc";
+    RUSTC = "${rustc}/bin/rustc";
   };
 
   # Build script doesn't need optimization.

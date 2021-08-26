@@ -55,7 +55,7 @@
 
         packages."{{ crate_name|nix_str }}" = pkgs.nocargo.buildRustCrateFromSrcAndLock {
           src = ./.;
-          inherit /* rustc */
+          inherit rustc
             {%- if !registries.is_empty() %} extraRegistries{% endif %}
             {%- if !git_srcs.is_empty() %} gitSources{% endif %};
         };

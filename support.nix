@@ -8,7 +8,7 @@ let
 in
 rec {
   buildRustCrateFromSrcAndLock =
-    { defaultRegistries, buildRustCrate, stdenv }:
+    { defaultRegistries, buildRustCrate, stdenv, buildPackages }:
     { src
     , cargoTomlFile ? src + "/Cargo.toml"
     , cargoLockFile ? src + "/Cargo.lock"
@@ -16,6 +16,7 @@ rec {
     , profile ? "release"
     , extraRegistries ? {}
     , gitSources ? {}
+    , rustc ? buildPackages.rustc
     }:
     assert elem profile [ "dev" "release" ];
     let
@@ -94,7 +95,7 @@ rec {
         if features != null then
           buildRustCrate {
             inherit (info) version src;
-            inherit features profile;
+            inherit features profile rustc;
             pname = info.name;
             capLints = if info ? isRootCrate then null else "allow";
             buildDependencies = selectDeps pkgsBuild info.dependencies features "build";
@@ -109,7 +110,7 @@ rec {
         if features != null then
           buildRustCrate {
             inherit (info) version src links;
-            inherit features profile;
+            inherit features profile rustc;
             pname = info.name;
             capLints = if info ? isRootCrate then null else "allow";
             buildDependencies = selectDeps pkgsBuild info.dependencies features "build";
@@ -122,11 +123,11 @@ rec {
     in
       pkgs.${rootId};
 
-  build-from-src-dry-tests = { assertDeepEq, ... }: { nocargo, stdenv }: let
+  build-from-src-dry-tests = { assertDeepEq, ... }: { nocargo, pkgs }: let
     buildRustCrateFromSrcAndLock' = buildRustCrateFromSrcAndLock {
       inherit (nocargo) defaultRegistries;
-      inherit stdenv;
-      buildRustCrate = args: removeAttrs args [ "src" ];
+      inherit (pkgs) stdenv buildPackages;
+      buildRustCrate = args: removeAttrs args [ "src" "rustc" ];
     };
     test = src: args: let
       got = buildRustCrateFromSrcAndLock' ({ inherit src; } // args);

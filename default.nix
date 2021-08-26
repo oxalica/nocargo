@@ -24,7 +24,7 @@ in
 
     buildRustCrateFromSrcAndLock = buildRustCrateFromSrcAndLock {
       inherit (final.nocargo) defaultRegistries buildRustCrate;
-      inherit (final) stdenv;
+      inherit (final) stdenv buildPackages;
     };
   };
 }

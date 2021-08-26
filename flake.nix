@@ -59,7 +59,7 @@
         lib.nocargo.resolve-deps-tests assertFns pkgs.nocargo //
         lib.nocargo.resolve-features-tests assertFns //
         lib.nocargo.crate-info-from-toml-tests assertFns //
-        lib.nocargo.build-from-src-dry-tests assertFns { inherit (pkgs) nocargo stdenv; };
+        lib.nocargo.build-from-src-dry-tests assertFns { inherit (pkgs) nocargo pkgs; };
 
       checkDrvs = let
         mkHelloWorld = name: drv: pkgs.runCommand "check-${drv.name}" {} ''
