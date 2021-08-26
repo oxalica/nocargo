@@ -1,9 +1,11 @@
 {
   "buildDependencies": [],
+  "capLints": null,
   "dependencies": [
     {
       "drv": {
         "buildDependencies": [],
+        "capLints": "allow",
         "dependencies": [],
         "features": [
           "cargo-build",
@@ -22,6 +24,7 @@
           {
             "drv": {
               "buildDependencies": [],
+              "capLints": "allow",
               "dependencies": [],
               "features": [],
               "pname": "autocfg",
@@ -31,14 +34,17 @@
             "name": "autocfg"
           }
         ],
+        "capLints": "allow",
         "dependencies": [
           {
             "drv": {
               "buildDependencies": [],
+              "capLints": "allow",
               "dependencies": [
                 {
                   "drv": {
                     "buildDependencies": [],
+                    "capLints": "allow",
                     "dependencies": [],
                     "features": [
                       "default",
@@ -63,6 +69,7 @@
           {
             "drv": {
               "buildDependencies": [],
+              "capLints": "allow",
               "dependencies": [],
               "features": [],
               "links": null,
@@ -75,14 +82,17 @@
           {
             "drv": {
               "buildDependencies": [],
+              "capLints": "allow",
               "dependencies": [
                 {
                   "drv": {
                     "buildDependencies": [],
+                    "capLints": "allow",
                     "dependencies": [
                       {
                         "drv": {
                           "buildDependencies": [],
+                          "capLints": "allow",
                           "dependencies": [],
                           "features": [
                             "default"
@@ -109,14 +119,17 @@
                 {
                   "drv": {
                     "buildDependencies": [],
+                    "capLints": "allow",
                     "dependencies": [
                       {
                         "drv": {
                           "buildDependencies": [],
+                          "capLints": "allow",
                           "dependencies": [
                             {
                               "drv": {
                                 "buildDependencies": [],
+                                "capLints": "allow",
                                 "dependencies": [],
                                 "features": [
                                   "default"
@@ -155,14 +168,17 @@
                 {
                   "drv": {
                     "buildDependencies": [],
+                    "capLints": "allow",
                     "dependencies": [
                       {
                         "drv": {
                           "buildDependencies": [],
+                          "capLints": "allow",
                           "dependencies": [
                             {
                               "drv": {
                                 "buildDependencies": [],
+                                "capLints": "allow",
                                 "dependencies": [],
                                 "features": [
                                   "default"
@@ -189,14 +205,17 @@
                       {
                         "drv": {
                           "buildDependencies": [],
+                          "capLints": "allow",
                           "dependencies": [
                             {
                               "drv": {
                                 "buildDependencies": [],
+                                "capLints": "allow",
                                 "dependencies": [
                                   {
                                     "drv": {
                                       "buildDependencies": [],
+                                      "capLints": "allow",
                                       "dependencies": [],
                                       "features": [
                                         "default"
@@ -235,6 +254,7 @@
                       {
                         "drv": {
                           "buildDependencies": [],
+                          "capLints": "allow",
                           "dependencies": [],
                           "features": [
                             "default"

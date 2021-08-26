@@ -22,7 +22,9 @@ rec {
       cargoToml = fromTOML (readFile cargoTomlFile);
       cargoLock = fromTOML (readFile cargoLockFile);
 
-      rootInfo = mkCrateInfoFromCargoToml cargoToml src;
+      rootInfo = mkCrateInfoFromCargoToml cargoToml src // {
+        isRootCrate = true;
+      };
       rootId = "${rootInfo.name} ${rootInfo.version} ()";
 
       registries = defaultRegistries // extraRegistries;
@@ -94,6 +96,7 @@ rec {
             inherit (info) version src;
             inherit features profile;
             pname = info.name;
+            capLints = if info ? isRootCrate then null else "allow";
             buildDependencies = selectDeps pkgsBuild info.dependencies features "build";
             # Build dependency's normal dependency is still build dependency.
             dependencies = selectDeps pkgsBuild info.dependencies features "normal";
@@ -108,6 +111,7 @@ rec {
             inherit (info) version src links;
             inherit features profile;
             pname = info.name;
+            capLints = if info ? isRootCrate then null else "allow";
             buildDependencies = selectDeps pkgsBuild info.dependencies features "build";
             dependencies = selectDeps pkgs info.dependencies features "normal";
           }

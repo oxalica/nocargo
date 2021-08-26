@@ -1,13 +1,16 @@
 {
   "buildDependencies": [],
+  "capLints": null,
   "dependencies": [
     {
       "drv": {
         "buildDependencies": [],
+        "capLints": "allow",
         "dependencies": [
           {
             "drv": {
               "buildDependencies": [],
+              "capLints": "allow",
               "dependencies": [],
               "features": [],
               "links": null,

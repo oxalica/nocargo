@@ -13,6 +13,7 @@ let toCrateName = lib.replaceStrings [ "-" ] [ "_" ]; in
 , features ? []
 , nativeBuildInputs ? []
 , profile ? "release"
+, capLints ? null
 , ...
 }@args:
 assert lib.elem profile [ "dev" "release" ];
@@ -46,6 +47,8 @@ let
 
     nativeBuildInputs = [ toml2json jq ];
     sharedLibraryExt = stdenv.hostPlatform.extensions.sharedLibrary;
+
+    inherit capLints;
 
     # FIXME: Support custom profiles in Cargo.toml
     inherit profile;

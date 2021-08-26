@@ -17,6 +17,9 @@ if [[ -n "${debugAssertions:-}" ]]; then
 else
     buildFlagsArray+=(-C debug-assertions=no)
 fi
+if [[ -n "${capLints:-}" ]]; then
+    buildFlagsArray+=(--cap-lints="$capLints")
+fi
 
 # Collect all transitive dependencies (symlinks).
 collectTransDeps() {
