@@ -29,7 +29,7 @@ configurePhase() {
     fi
 
     crateType="$(jq --raw-output '.lib."crate-type" // ["lib"] | join(",")' "$cargoTomlJson")"
-    if [[ "$(jq '.lib."proc-macro"' "$cargoTomlJson")" == true ]]; then
+    if [[ "$(jq --raw-output '.lib."proc-macro"' "$cargoTomlJson")" == true ]]; then
         # Override crate type.
         crateType="proc-macro"
         mkdir -p $dev/rust-support

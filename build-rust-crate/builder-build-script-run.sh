@@ -1,4 +1,5 @@
 source $stdenv/setup
+source $builderCommon
 
 buildScriptBin="$buildDrv/bin/build_script_build"
 if [[ ! -e "$buildScriptBin" ]]; then
@@ -16,9 +17,13 @@ preInstallPhases=runPhase
 configurePhase() {
     runHook preConfigure
 
-    CARGO_MANIFEST_DIR="$(pwd)"
+    convertCargoToml
+    setCargoCommonBuildEnv
+
     export CARGO_MANIFEST_DIR
-    export CARGO_MANIFEST_LINKS="$links"
+    if [[ -n "$links" ]]; then
+        export CARGO_MANIFEST_LINKS="$links"
+    fi
 
     for feat in $features; do
         export "CARGO_FEATURE_${feat//-/_}"=1
@@ -26,9 +31,18 @@ configurePhase() {
 
     export OUT_DIR="$out/rust-support/out-dir"
     export NUM_JOBS=$NIX_BUILD_CORES
-    export OPT_LEVEL="${optLevel:-}"
-    export DEBUG="${debug:-}"
-    export PROFILE="$profile"
+    export OPT_LEVEL="${optLevel:-0}"
+    if [[ -n "$debugInfo" && "$debugInfo" -ne 0 ]]; then
+        export DEBUG=true
+    else
+        export DEBUG=false
+    fi
+
+    if [[ "$profile" == release ]]; then
+        export PROFILE=release
+    else
+        export PROFILE=debug
+    fi
 
     export RUSTC_BACKTRACE=1 # Make debugging easier.
 

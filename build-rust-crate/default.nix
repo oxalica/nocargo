@@ -39,7 +39,7 @@ let
 
   builderCommon = ./builder-common.sh;
 
-  profileExt = if profile == "dev" then "-dev" else "";
+  profileExt = if profile == "dev" then "-debug" else "";
 
   commonArgs = {
     inherit crateName version src;
@@ -47,8 +47,9 @@ let
     nativeBuildInputs = [ toml2json jq ];
     sharedLibraryExt = stdenv.hostPlatform.extensions.sharedLibrary;
 
+    # FIXME: Support custom profiles in Cargo.toml
     inherit profile;
-    debug = if profile == "dev" then 2 else null;
+    debugInfo = if profile == "dev" then 2 else null;
     optLevel = if profile == "dev" then null else 3;
     debugAssertions = profile == "dev";
 

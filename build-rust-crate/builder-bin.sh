@@ -46,7 +46,7 @@ configurePhase() {
     done < <(jq --raw-output '.bin // [] | .[] | .name, .path, .edition' "$cargoTomlJson")
 
     local autobins
-    autobins="$(jq '.package.autobins' "$cargoTomlJson")"
+    autobins="$(jq --raw-output '.package.autobins' "$cargoTomlJson")"
     if [[ "$autobins" != false && ( "${edition:-2015}" != 2015 || ${#buildFlagsMap[@]} = 0 ) ]]; then
         if [[ -z "${buildFlagsMap["$pkgName"]}" && -f src/main.rs ]]; then
             addBin "$pkgName" src/main.rs

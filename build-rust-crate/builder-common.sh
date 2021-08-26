@@ -9,8 +9,8 @@ fi
 if [[ -n "${optLevel:-}" ]]; then
     buildFlagsArray+=(-C opt-level="$optLevel")
 fi
-if [[ -n "${debug:-}" ]]; then
-    buildFlagsArray+=(-C debuginfo="$debug")
+if [[ -n "${debugInfo:-}" ]]; then
+    buildFlagsArray+=(-C debuginfo="$debugInfo")
 fi
 if [[ -n "${debugAssertions:-}" ]]; then
     buildFlagsArray+=(-C debug-assertions=yes)
@@ -107,12 +107,12 @@ setCargoCommonBuildEnv() {
     export CARGO_CRATE_NAME="$crateName"
     export CARGO_PKG_VERSION="$version"
 
-    CARGO_PKG_NAME="$(jq '.package.name // ""' "$cargoTomlJson")"
-    CARGO_PKG_AUTHORS="$(jq '.package.authors // [] | join(":")' "$cargoTomlJson")"
-    CARGO_PKG_DESCRIPTION="$(jq '.package.description // ""' "$cargoTomlJson")"
-    CARGO_PKG_HOMEPAGE="$(jq '.package.homepage // ""' "$cargoTomlJson")"
-    CARGO_PKG_LICENSE="$(jq '.package.license // ""' "$cargoTomlJson")"
-    CARGO_PKG_LICENSE_FILE="$(jq '.package."license-file" // ""' "$cargoTomlJson")"
+    CARGO_PKG_NAME="$(jq --raw-output '.package.name // ""' "$cargoTomlJson")"
+    CARGO_PKG_AUTHORS="$(jq --raw-output '.package.authors // [] | join(":")' "$cargoTomlJson")"
+    CARGO_PKG_DESCRIPTION="$(jq --raw-output '.package.description // ""' "$cargoTomlJson")"
+    CARGO_PKG_HOMEPAGE="$(jq --raw-output '.package.homepage // ""' "$cargoTomlJson")"
+    CARGO_PKG_LICENSE="$(jq --raw-output '.package.license // ""' "$cargoTomlJson")"
+    CARGO_PKG_LICENSE_FILE="$(jq --raw-output '.package."license-file" // ""' "$cargoTomlJson")"
     export CARGO_PKG_NAME CARGO_PKG_AUTHORS CARGO_PKG_DESCRIPTION \
         CARGO_PKG_HOMEPAGE CARGO_PKG_LICENSE CARGO_PKG_LICENSE_FILE
 
