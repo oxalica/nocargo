@@ -4,8 +4,6 @@ shopt -s nullglob
 
 buildFlagsArray+=( -C metadata="$rustcMeta" )
 
-declare -A binBuildFlagsMap
-
 dontFixup=1
 
 configurePhase() {
@@ -28,29 +26,44 @@ configurePhase() {
         buildFlagsArray+=(--edition "$edition")
     fi
 
-    crateType="$(jq --raw-output '.lib."crate-type" // ["lib"] | join(",")' "$cargoTomlJson")"
+    mapfile -t crateTypes < <(jq --raw-output '.lib."crate-type" // ["lib"] | .[]' "$cargoTomlJson")
     if [[ "$(jq --raw-output '.lib."proc-macro"' "$cargoTomlJson")" == true ]]; then
         # Override crate type.
-        crateType="proc-macro"
+        crateTypes=("proc-macro")
         mkdir -p $dev/rust-support
         touch $dev/rust-support/is-proc-macro
     fi
 
-    case "$crateType" in
-        lib|rlib)
-            addExternFlags buildFlagsArray meta $dependencies
-            ;;
-        dylib|cdylib|proc-macro|bin)
-            addExternFlags buildFlagsArray link $dependencies
-            ;;
-        *)
-            echo "Unsupported crate-type: $crateType"
-            exit 1
-            ;;
-    esac
+    needLinkDeps=
+    buildCdylib=
+    for crateType in "${crateTypes[@]}"; do
+        case "$crateType" in
+            lib|rlib)
+                ;;
+            dylib|staticlib|proc-macro|bin)
+                needLinkDeps=1
+                ;;
+            cdylib)
+                buildCdylib=1
+                ;;
+            *)
+                echo "Unsupported crate-type: $crateType"
+                exit 1
+                ;;
+        esac
+    done
+    if [[ -n "$needLinkDeps" ]]; then
+        addExternFlags buildFlagsArray link $dependencies
+    else
+        addExternFlags buildFlagsArray meta $dependencies
+    fi
+
+    declare -a cdylibBuildFlagsArray
+    importBuildOut buildFlagsArray cdylibBuildFlagsArray "$buildOutDrv"
+    # FIXME: cargo include cdylib flags for all crate-types once cdylib is included.
+    buildFlagsArray+=( "${cdylibBuildFlagsArray[@]}" )
 
     addFeatures buildFlagsArray $features
-    importBuildOut buildFlagsArray "$buildOutDrv" "$crateType"
     setCargoCommonBuildEnv
 
     collectTransDeps $dev/rust-support/deps-closure $dependencies
@@ -62,12 +75,16 @@ configurePhase() {
 buildPhase() {
     runHook preBuild
 
+    local crateTypesCommaSep
+    printf -v crateTypesCommaSep '%s,' "${crateTypes[@]}"
+    crateTypesCommaSep="${crateTypesCommaSep%,}"
+
     mkdir -p $out/lib
     runRustc "Building lib" \
         "$libSrc" \
         --out-dir $out/lib \
         --crate-name "$crateName" \
-        --crate-type "$crateType" \
+        --crate-type "$crateTypesCommaSep" \
         --emit metadata,link \
         -C embed-bitcode=no \
         -C extra-filename="-$rustcMeta" \

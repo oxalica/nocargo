@@ -39,7 +39,7 @@ addExternFlags() {
     for line in "$@"; do
         IFS=: read -r name binName depOut depDev <<<"$line"
 
-        if [[ -e "$depOut/lib/$binName$sharedLibraryExt" ]]; then
+        if [[ -e "$depDev/rust-support/is-proc-macro" ]]; then
             path="$depOut/lib/$binName$sharedLibraryExt"
         elif [[ "$kind" == meta ]]; then
             path="$depDev/lib/$binName.rmeta"
@@ -66,7 +66,7 @@ addFeatures() {
 }
 
 importBuildOut() {
-    local var="$1" drv="$2" crateType="$3" flags
+    local var="$1" cvar="$2" drv="$3" flags
     [[ ! -e "$drv/rust-support/build-stdout" ]] && return
 
     echo export OUT_DIR="$drv/rust-support/out-dir"
@@ -78,10 +78,8 @@ importBuildOut() {
     mapfile -t flags <"$drv/rust-support/rustc-flags"
     eval "$var"'+=("${flags[@]}")'
 
-    if [[ "$crateType" == cdylib ]]; then
-        mapfile -t flags <"$drv/rust-support/cdylib-flags"
-        eval "$var"'+=("${flags[@]}")'
-    fi
+    mapfile -t flags <"$drv/rust-support/cdylib-link-flags"
+    eval "$cvar"'+=("${flags[@]}")'
 
     if [[ -n "${dev:-}" ]]; then
         mkdir -p "$dev/rust-support"

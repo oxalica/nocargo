@@ -81,9 +81,12 @@ configurePhase() {
         buildFlagsArray+=(--extern "$crateName=$libDrv/lib/$libName.rlib")
     fi
 
+    # Actually unused.
+    declare -a cdylibBuildFlagsArray
+
     addExternFlags buildFlagsArray link $dependencies
     addFeatures buildFlagsArray $features
-    importBuildOut buildFlagsArray "$buildOutDrv" bin
+    importBuildOut buildFlagsArray cdylibBuildFlagsArray "$buildOutDrv"
     setCargoCommonBuildEnv
 
     depsClosure="$(mktemp -d)"
