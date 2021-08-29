@@ -96,8 +96,11 @@ rec {
             deps);
 
       buildRustCrate' = info: args:
-        buildRustCrate
-          (args // (buildCrateOverrides.${toCrateId info} or (args: args)) args);
+        let
+          args' = args // (info.__override or lib.id) args;
+          args'' = args' // (buildCrateOverrides.${toCrateId info} or lib.id) args';
+        in
+          buildRustCrate args'';
 
       pkgsBuild = mapAttrs (id: features: let info = pkgSet.${id}; in
         if features != null then
@@ -156,6 +159,7 @@ rec {
         "ssh://git@github.com/dtolnay/semver" = ./tests/dep-source-kinds/fake-semver;
       };
     };
+    build-from-src-dry-openssl = test ./tests/test-openssl {};
 
     build-from-src-dry-dependent-overrided = test' ./tests/dependent ./tests/dependent/dry-build-overrided.json {
       buildCrateOverrides."" = old: { a = "b"; };

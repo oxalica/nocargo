@@ -10,7 +10,6 @@ fi
 
 dontPatch=1
 dontBuild=1
-dontFixup=1
 preInstallPhases=runPhase
 
 # https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts

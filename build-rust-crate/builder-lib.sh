@@ -4,8 +4,6 @@ shopt -s nullglob
 
 buildFlagsArray+=( -C metadata="$rustcMeta" )
 
-dontFixup=1
-
 configurePhase() {
     runHook preConfigure
 

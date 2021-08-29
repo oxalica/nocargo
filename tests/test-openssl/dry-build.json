@@ -1,0 +1,187 @@
+{
+  "buildDependencies": [],
+  "capLints": null,
+  "dependencies": [
+    {
+      "drv": {
+        "buildDependencies": [],
+        "capLints": "allow",
+        "dependencies": [
+          {
+            "drv": {
+              "buildDependencies": [],
+              "capLints": "allow",
+              "dependencies": [],
+              "features": [
+                "default"
+              ],
+              "links": null,
+              "pname": "bitflags",
+              "profile": "release",
+              "version": "1.3.2"
+            },
+            "name": "bitflags"
+          },
+          {
+            "drv": {
+              "buildDependencies": [],
+              "capLints": "allow",
+              "dependencies": [],
+              "features": [],
+              "links": null,
+              "pname": "cfg-if",
+              "profile": "release",
+              "version": "1.0.0"
+            },
+            "name": "cfg-if"
+          },
+          {
+            "drv": {
+              "buildDependencies": [
+                {
+                  "drv": {
+                    "buildDependencies": [],
+                    "capLints": "allow",
+                    "dependencies": [],
+                    "features": [],
+                    "pname": "autocfg",
+                    "profile": "release",
+                    "version": "1.0.1"
+                  },
+                  "name": "autocfg"
+                },
+                {
+                  "drv": {
+                    "buildDependencies": [],
+                    "capLints": "allow",
+                    "dependencies": [],
+                    "features": [],
+                    "pname": "cc",
+                    "profile": "release",
+                    "version": "1.0.69"
+                  },
+                  "name": "cc"
+                },
+                {
+                  "drv": {
+                    "buildDependencies": [],
+                    "capLints": "allow",
+                    "dependencies": [],
+                    "features": [],
+                    "pname": "pkg-config",
+                    "profile": "release",
+                    "version": "0.3.19"
+                  },
+                  "name": "pkg-config"
+                }
+              ],
+              "capLints": "allow",
+              "dependencies": [
+                {
+                  "drv": {
+                    "buildDependencies": [],
+                    "capLints": "allow",
+                    "dependencies": [],
+                    "features": [
+                      "default",
+                      "std"
+                    ],
+                    "links": null,
+                    "pname": "libc",
+                    "profile": "release",
+                    "version": "0.2.101"
+                  },
+                  "name": "libc"
+                }
+              ],
+              "features": [],
+              "links": "openssl",
+              "nativeBuildInputs": [
+                "/nix/store/96g3h5kipmvdsfw7ipn1sq7myb8rpn5g-pkg-config-wrapper-0.29.2"
+              ],
+              "pname": "openssl-sys",
+              "profile": "release",
+              "propagatedBuildInputs": [
+                "/nix/store/b1pmrir7cfasyl918f53k1ghgh9z299r-openssl-1.1.1k-bin"
+              ],
+              "version": "0.9.66"
+            },
+            "name": "ffi"
+          },
+          {
+            "drv": {
+              "buildDependencies": [],
+              "capLints": "allow",
+              "dependencies": [
+                {
+                  "drv": {
+                    "buildDependencies": [],
+                    "capLints": "allow",
+                    "dependencies": [],
+                    "features": [],
+                    "links": null,
+                    "pname": "foreign-types-shared",
+                    "profile": "release",
+                    "version": "0.1.1"
+                  },
+                  "name": "foreign-types-shared"
+                }
+              ],
+              "features": [],
+              "links": null,
+              "pname": "foreign-types",
+              "profile": "release",
+              "version": "0.3.2"
+            },
+            "name": "foreign-types"
+          },
+          {
+            "drv": {
+              "buildDependencies": [],
+              "capLints": "allow",
+              "dependencies": [],
+              "features": [
+                "default",
+                "std"
+              ],
+              "links": null,
+              "pname": "libc",
+              "profile": "release",
+              "version": "0.2.101"
+            },
+            "name": "libc"
+          },
+          {
+            "drv": {
+              "buildDependencies": [],
+              "capLints": "allow",
+              "dependencies": [],
+              "features": [
+                "alloc",
+                "default",
+                "race",
+                "std"
+              ],
+              "links": null,
+              "pname": "once_cell",
+              "profile": "release",
+              "version": "1.8.0"
+            },
+            "name": "once_cell"
+          }
+        ],
+        "features": [],
+        "links": null,
+        "pname": "openssl",
+        "profile": "release",
+        "version": "0.10.36"
+      },
+      "name": "openssl"
+    }
+  ],
+  "features": [],
+  "links": null,
+  "pname": "test-openssl",
+  "profile": "release",
+  "version": "0.1.0"
+}

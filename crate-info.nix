@@ -1,10 +1,12 @@
 { lib, fetchurl }:
 let
   inherit (builtins) readFile readDir fromJSON fromTOML toString attrNames;
-  inherit (lib) stringLength splitString replaceStrings substring isString filter listToAttrs mapAttrs mapAttrsToList;
+  inherit (lib)
+    stringLength splitString replaceStrings substring isString
+    filter listToAttrs mapAttrs mapAttrsToList optionalAttrs;
 in
 rec {
-  mkIndex = path: let
+  mkIndex = path: overrides: let
     # TODO: We currently only support legacy format used by crates.io-index.
     # https://github.com/rust-lang/cargo/blob/2f3df16921deb34a92700f4d5a7ecfb424739558/src/cargo/sources/registry/mod.rs#L230-L244
     downloadEndpoint = (fromJSON (readFile "${path}/config.json")).dl;
@@ -15,12 +17,12 @@ rec {
       mapAttrs (k: v:
         if v == "directory"
           then go "${path}/${k}"
-          else mkCrateInfoSet mkDownloadUrl k (readFile "${path}/${k}")
+          else mkCrateInfoSet mkDownloadUrl k (readFile "${path}/${k}") (overrides.${k} or null)
       ) (removeAttrs (readDir path) [ "config.json" ]);
   in
     go path // { __registry_index = true; };
 
-  # Get crate info of the given package.
+  # Get crate info of the given package, with overrides applied if exists.
   getCrateInfoFromIndex = index: { name, version, checksum ? null, ... }: let
     len = stringLength name;
     crate =
@@ -46,11 +48,12 @@ rec {
       info;
 
   # Make a set of crate infos keyed by version.
-  mkCrateInfoSet = mkDownloadUrl: name: content: let
+  mkCrateInfoSet = mkDownloadUrl: name: content: override: let
     lines = filter (line: line != "") (splitString "\n" content);
     parseLine = line: let parsed = fromJSON line; in {
       name = parsed.vers;
-      value = mkCrateInfo mkDownloadUrl parsed;
+      value = mkCrateInfo mkDownloadUrl parsed
+        // optionalAttrs (override != null) { __override = override; };
     };
   in
     listToAttrs (map parseLine lines);

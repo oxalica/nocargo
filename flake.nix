@@ -13,7 +13,10 @@
       out' = out // {
         nocargo = out.nocargo // {
           defaultRegistries = {
-            "https://github.com/rust-lang/crates.io-index" = out.lib.nocargo.mkIndex registry-crates-io;
+            "https://github.com/rust-lang/crates.io-index" =
+              out.lib.nocargo.mkIndex
+                registry-crates-io
+                (import ./crates-io-override { inherit (final) lib pkgs; });
           };
         };
       };
