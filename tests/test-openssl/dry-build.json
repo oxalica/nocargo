@@ -16,6 +16,7 @@
                 "default"
               ],
               "links": null,
+              "linksDependencies": [],
               "pname": "bitflags",
               "profile": "release",
               "version": "1.3.2"
@@ -29,6 +30,7 @@
               "dependencies": [],
               "features": [],
               "links": null,
+              "linksDependencies": [],
               "pname": "cfg-if",
               "profile": "release",
               "version": "1.0.0"
@@ -44,6 +46,7 @@
                     "capLints": "allow",
                     "dependencies": [],
                     "features": [],
+                    "linksDependencies": [],
                     "pname": "autocfg",
                     "profile": "release",
                     "version": "1.0.1"
@@ -56,6 +59,7 @@
                     "capLints": "allow",
                     "dependencies": [],
                     "features": [],
+                    "linksDependencies": [],
                     "pname": "cc",
                     "profile": "release",
                     "version": "1.0.69"
@@ -68,6 +72,7 @@
                     "capLints": "allow",
                     "dependencies": [],
                     "features": [],
+                    "linksDependencies": [],
                     "pname": "pkg-config",
                     "profile": "release",
                     "version": "0.3.19"
@@ -87,6 +92,7 @@
                       "std"
                     ],
                     "links": null,
+                    "linksDependencies": [],
                     "pname": "libc",
                     "profile": "release",
                     "version": "0.2.101"
@@ -96,6 +102,7 @@
               ],
               "features": [],
               "links": "openssl",
+              "linksDependencies": [],
               "nativeBuildInputs": [
                 "/nix/store/96g3h5kipmvdsfw7ipn1sq7myb8rpn5g-pkg-config-wrapper-0.29.2"
               ],
@@ -120,6 +127,7 @@
                     "dependencies": [],
                     "features": [],
                     "links": null,
+                    "linksDependencies": [],
                     "pname": "foreign-types-shared",
                     "profile": "release",
                     "version": "0.1.1"
@@ -129,6 +137,7 @@
               ],
               "features": [],
               "links": null,
+              "linksDependencies": [],
               "pname": "foreign-types",
               "profile": "release",
               "version": "0.3.2"
@@ -145,6 +154,7 @@
                 "std"
               ],
               "links": null,
+              "linksDependencies": [],
               "pname": "libc",
               "profile": "release",
               "version": "0.2.101"
@@ -163,6 +173,7 @@
                 "std"
               ],
               "links": null,
+              "linksDependencies": [],
               "pname": "once_cell",
               "profile": "release",
               "version": "1.8.0"
@@ -172,6 +183,86 @@
         ],
         "features": [],
         "links": null,
+        "linksDependencies": [
+          {
+            "drv": {
+              "buildDependencies": [
+                {
+                  "drv": {
+                    "buildDependencies": [],
+                    "capLints": "allow",
+                    "dependencies": [],
+                    "features": [],
+                    "linksDependencies": [],
+                    "pname": "autocfg",
+                    "profile": "release",
+                    "version": "1.0.1"
+                  },
+                  "name": "autocfg"
+                },
+                {
+                  "drv": {
+                    "buildDependencies": [],
+                    "capLints": "allow",
+                    "dependencies": [],
+                    "features": [],
+                    "linksDependencies": [],
+                    "pname": "cc",
+                    "profile": "release",
+                    "version": "1.0.69"
+                  },
+                  "name": "cc"
+                },
+                {
+                  "drv": {
+                    "buildDependencies": [],
+                    "capLints": "allow",
+                    "dependencies": [],
+                    "features": [],
+                    "linksDependencies": [],
+                    "pname": "pkg-config",
+                    "profile": "release",
+                    "version": "0.3.19"
+                  },
+                  "name": "pkg-config"
+                }
+              ],
+              "capLints": "allow",
+              "dependencies": [
+                {
+                  "drv": {
+                    "buildDependencies": [],
+                    "capLints": "allow",
+                    "dependencies": [],
+                    "features": [
+                      "default",
+                      "std"
+                    ],
+                    "links": null,
+                    "linksDependencies": [],
+                    "pname": "libc",
+                    "profile": "release",
+                    "version": "0.2.101"
+                  },
+                  "name": "libc"
+                }
+              ],
+              "features": [],
+              "links": "openssl",
+              "linksDependencies": [],
+              "nativeBuildInputs": [
+                "/nix/store/96g3h5kipmvdsfw7ipn1sq7myb8rpn5g-pkg-config-wrapper-0.29.2"
+              ],
+              "pname": "openssl-sys",
+              "profile": "release",
+              "propagatedBuildInputs": [
+                "/nix/store/b1pmrir7cfasyl918f53k1ghgh9z299r-openssl-1.1.1k-bin"
+              ],
+              "version": "0.9.66"
+            },
+            "name": "ffi"
+          }
+        ],
         "pname": "openssl",
         "profile": "release",
         "version": "0.10.36"
@@ -181,6 +272,7 @@
   ],
   "features": [],
   "links": null,
+  "linksDependencies": [],
   "pname": "test-openssl",
   "profile": "release",
   "version": "0.1.0"

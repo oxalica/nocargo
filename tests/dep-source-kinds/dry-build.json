@@ -11,6 +11,7 @@
           "default"
         ],
         "links": null,
+        "linksDependencies": [],
         "pname": "bitflags",
         "profile": "release",
         "version": "1.3.2"
@@ -24,6 +25,7 @@
         "dependencies": [],
         "features": [],
         "links": null,
+        "linksDependencies": [],
         "pname": "cfg-if",
         "profile": "release",
         "version": "1.0.0"
@@ -37,6 +39,7 @@
         "dependencies": [],
         "features": [],
         "links": null,
+        "linksDependencies": [],
         "pname": "semver",
         "profile": "release",
         "version": "1.0.4"
@@ -50,6 +53,7 @@
         "dependencies": [],
         "features": [],
         "links": null,
+        "linksDependencies": [],
         "pname": "semver",
         "profile": "release",
         "version": "1.0.4"
@@ -63,6 +67,7 @@
         "dependencies": [],
         "features": [],
         "links": null,
+        "linksDependencies": [],
         "pname": "semver",
         "profile": "release",
         "version": "1.0.4"
@@ -76,6 +81,7 @@
         "dependencies": [],
         "features": [],
         "links": null,
+        "linksDependencies": [],
         "pname": "semver",
         "profile": "release",
         "version": "1.0.4"
@@ -85,6 +91,7 @@
   ],
   "features": [],
   "links": null,
+  "linksDependencies": [],
   "pname": "dep-source-kinds",
   "profile": "release",
   "version": "0.1.0"

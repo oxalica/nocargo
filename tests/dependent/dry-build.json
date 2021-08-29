@@ -14,6 +14,7 @@
               "dependencies": [],
               "features": [],
               "links": null,
+              "linksDependencies": [],
               "pname": "serde",
               "profile": "release",
               "version": "1.0.126"
@@ -27,6 +28,7 @@
           "std"
         ],
         "links": null,
+        "linksDependencies": [],
         "pname": "semver",
         "profile": "release",
         "version": "1.0.0"
@@ -36,6 +38,7 @@
   ],
   "features": [],
   "links": null,
+  "linksDependencies": [],
   "pname": "dependent",
   "profile": "release",
   "version": "0.1.0"

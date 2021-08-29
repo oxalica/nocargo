@@ -7,6 +7,7 @@
     "default"
   ],
   "links": null,
+  "linksDependencies": [],
   "pname": "simple-features",
   "profile": "release",
   "version": "0.1.0"

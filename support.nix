@@ -83,16 +83,15 @@ rec {
         depFilter = dep: dep.targetEnabled && dep.kind == "normal";
       };
 
-      selectDeps = pkgs: deps: features: selectKind:
+      selectDeps = pkgs: deps: features: selectKind: onlyLinks:
         map
-          (dep:
-            if dep.resolved == null then
-              throw "Unresolved dependency: ${toJSON dep}"
-            else
-              { name = dep.name; drv = pkgs.${dep.resolved}; })
+          (dep: { name = dep.name; drv = pkgs.${dep.resolved}; })
           (filter
-            ({ kind, name, optional, targetEnabled, ... }:
-              targetEnabled && kind == selectKind && (optional -> elem name features))
+            ({ kind, name, optional, targetEnabled, resolved, ... }@dep:
+              targetEnabled && kind == selectKind
+              && (optional -> elem name features)
+              && (if resolved == null then throw "Unresolved dependency: ${toJSON dep}" else true)
+              && (onlyLinks -> pkgSet.${resolved}.links != null))
             deps);
 
       buildRustCrate' = info: args:
@@ -109,9 +108,10 @@ rec {
             inherit features profile rustc;
             pname = info.name;
             capLints = if info ? isRootCrate then null else "allow";
-            buildDependencies = selectDeps pkgsBuild info.dependencies features "build";
+            buildDependencies = selectDeps pkgsBuild info.dependencies features "build" false;
             # Build dependency's normal dependency is still build dependency.
-            dependencies = selectDeps pkgsBuild info.dependencies features "normal";
+            dependencies = selectDeps pkgsBuild info.dependencies features "normal" false;
+            linksDependencies = selectDeps pkgsBuild info.dependencies features "normal" true;
           }
         else
           null
@@ -124,8 +124,9 @@ rec {
             inherit features profile rustc;
             pname = info.name;
             capLints = if info ? isRootCrate then null else "allow";
-            buildDependencies = selectDeps pkgsBuild info.dependencies features "build";
-            dependencies = selectDeps pkgs info.dependencies features "normal";
+            buildDependencies = selectDeps pkgsBuild info.dependencies features "build" false;
+            dependencies = selectDeps pkgs info.dependencies features "normal" false;
+            linksDependencies = selectDeps pkgs info.dependencies features "normal" true;
           }
         else
           null
@@ -160,6 +161,7 @@ rec {
       };
     };
     build-from-src-dry-openssl = test ./tests/test-openssl {};
+    build-from-src-dry-libz-link = test ./tests/libz-link {};
 
     build-from-src-dry-dependent-overrided = test' ./tests/dependent ./tests/dependent/dry-build-overrided.json {
       buildCrateOverrides."" = old: { a = "b"; };
