@@ -36,7 +36,7 @@
         {%- if !registries.is_empty() %}
         extraRegistries = {
           {%- for (source_id, _) in registries %}
-          "{{ source_id|nix_str }}" = pkgs.lib.nocargo.mkIndex inputs.registry-{{ loop.index }};
+          "{{ source_id|nix_str }}" = pkgs.lib.nocargo.mkIndex inputs.registry-{{ loop.index }} {};
           {%- endfor %}
         };
         {%- endif %}
