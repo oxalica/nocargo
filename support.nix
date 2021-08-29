@@ -1,7 +1,7 @@
 { lib }:
 let
   inherit (builtins) fromTOML fromJSON toJSON match;
-  inherit (lib) readFile mapAttrs filter replaceStrings elem elemAt id;
+  inherit (lib) readFile mapAttrs filter replaceStrings elem elemAt;
   inherit (lib.nocargo)
     mkCrateInfoFromCargoToml getCrateInfoFromIndex resolveDepsFromLock resolveFeatures
     platformToCfgs evalTargetCfgStr;
@@ -17,16 +17,19 @@ rec {
     , extraRegistries ? {}
     , gitSources ? {}
     , rustc ? buildPackages.rustc
+    , buildCrateOverrides ? {}
     }:
     assert elem profile [ "dev" "release" ];
     let
       cargoToml = fromTOML (readFile cargoTomlFile);
       cargoLock = fromTOML (readFile cargoLockFile);
 
+      toCrateId = info: "${info.name} ${info.version} (${info.source or ""})";
+
       rootInfo = mkCrateInfoFromCargoToml cargoToml src // {
         isRootCrate = true;
       };
-      rootId = "${rootInfo.name} ${rootInfo.version} ()";
+      rootId = toCrateId rootInfo;
 
       registries = defaultRegistries // extraRegistries;
 
@@ -47,6 +50,7 @@ rec {
             (registries.${url} or
               (throw "Registry `${url}` not found. Please specify it in `extraRegistries`."))
             args
+          // { inherit source; } # `source` is for crate id, which is used for overrides.
         else if kind == "git" then
           let
             gitSrc = gitSources.${url} or
@@ -91,9 +95,13 @@ rec {
               targetEnabled && kind == selectKind && (optional -> elem name features))
             deps);
 
+      buildRustCrate' = info: args:
+        buildRustCrate
+          (args // (buildCrateOverrides.${toCrateId info} or (args: args)) args);
+
       pkgsBuild = mapAttrs (id: features: let info = pkgSet.${id}; in
         if features != null then
-          buildRustCrate {
+          buildRustCrate' info {
             inherit (info) version src;
             inherit features profile rustc;
             pname = info.name;
@@ -108,7 +116,7 @@ rec {
 
       pkgs = mapAttrs (id: features: let info = pkgSet.${id}; in
         if features != null then
-          buildRustCrate {
+          buildRustCrate' info {
             inherit (info) version src links;
             inherit features profile rustc;
             pname = info.name;
@@ -129,9 +137,10 @@ rec {
       inherit (pkgs) stdenv buildPackages;
       buildRustCrate = args: removeAttrs args [ "src" "rustc" ];
     };
-    test = src: args: let
+    test = src: args: test' src (src + "/dry-build.json") args;
+    test' = src: expectFile: args: let
       got = buildRustCrateFromSrcAndLock' ({ inherit src; } // args);
-      expect = fromJSON (readFile (src + "/dry-build.json"));
+      expect = fromJSON (readFile expectFile);
     in
       assertDeepEq got expect;
   in
@@ -145,6 +154,13 @@ rec {
         "git://github.com/dtolnay/semver?branch=master" = ./tests/dep-source-kinds/fake-semver;
         "ssh://git@github.com/dtolnay/semver?rev=ea9ea80c023ba3913b9ab0af1d983f137b4110a5" = ./tests/dep-source-kinds/fake-semver;
         "ssh://git@github.com/dtolnay/semver" = ./tests/dep-source-kinds/fake-semver;
+      };
+    };
+
+    build-from-src-dry-dependent-overrided = test' ./tests/dependent ./tests/dependent/dry-build-overrided.json {
+      buildCrateOverrides."" = old: { a = "b"; };
+      buildCrateOverrides."serde 1.0.126 (registry+https://github.com/rust-lang/crates.io-index)" = old: {
+        buildInputs = [ "some-inputs" ];
       };
     };
   };

@@ -1,0 +1,45 @@
+{
+  "buildDependencies": [],
+  "capLints": null,
+  "dependencies": [
+    {
+      "drv": {
+        "buildDependencies": [],
+        "capLints": "allow",
+        "dependencies": [
+          {
+            "drv": {
+              "buildDependencies": [],
+              "buildInputs": [
+                "some-inputs"
+              ],
+              "capLints": "allow",
+              "dependencies": [],
+              "features": [],
+              "links": null,
+              "pname": "serde",
+              "profile": "release",
+              "version": "1.0.126"
+            },
+            "name": "serde"
+          }
+        ],
+        "features": [
+          "default",
+          "serde",
+          "std"
+        ],
+        "links": null,
+        "pname": "semver",
+        "profile": "release",
+        "version": "1.0.0"
+      },
+      "name": "semver"
+    }
+  ],
+  "features": [],
+  "links": null,
+  "pname": "dependent",
+  "profile": "release",
+  "version": "0.1.0"
+}
