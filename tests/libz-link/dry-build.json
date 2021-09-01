@@ -16,7 +16,7 @@
               "profile": "release",
               "version": "1.0.68"
             },
-            "name": "cc"
+            "rename": null
           },
           {
             "drv": {
@@ -29,7 +29,7 @@
               "profile": "release",
               "version": "0.3.19"
             },
-            "name": "pkg-config"
+            "rename": null
           }
         ],
         "capLints": "allow",
@@ -49,7 +49,7 @@
               "profile": "release",
               "version": "0.2.95"
             },
-            "name": "libc"
+            "rename": null
           }
         ],
         "features": [
@@ -64,7 +64,7 @@
         "profile": "release",
         "version": "1.1.3"
       },
-      "name": "libz-sys"
+      "rename": null
     }
   ],
   "features": [],
@@ -84,7 +84,7 @@
               "profile": "release",
               "version": "1.0.68"
             },
-            "name": "cc"
+            "rename": null
           },
           {
             "drv": {
@@ -97,7 +97,7 @@
               "profile": "release",
               "version": "0.3.19"
             },
-            "name": "pkg-config"
+            "rename": null
           }
         ],
         "capLints": "allow",
@@ -117,7 +117,7 @@
               "profile": "release",
               "version": "0.2.95"
             },
-            "name": "libc"
+            "rename": null
           }
         ],
         "features": [
@@ -132,7 +132,7 @@
         "profile": "release",
         "version": "1.1.3"
       },
-      "name": "libz-sys"
+      "rename": null
     }
   ],
   "pname": "libz-link",

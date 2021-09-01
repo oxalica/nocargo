@@ -73,7 +73,7 @@ in rec {
         else
           elemAt candidates 0;
 
-      selectDep = candidates: { name, package ? name, req, source ? null, ... }@dep:
+      selectDep = candidates: { name, package, req, source ? null, ... }@dep:
         let
           # Local path or git dependencies don't have version req.
           checkReq = if req != null then parseSemverReq req else (ver: true);
@@ -266,15 +266,17 @@ in rec {
 
   resolve-deps-tests = { assertDeepEq, ... }: nocargo: {
     resolve-deps-simple = let
+      inherit (lib.nocargo) sanitizeDep;
+
       index = {
         libc."0.1.12" = { name = "libc"; version = "0.1.12"; dependencies = []; };
         libc."0.2.95" = { name = "libc"; version = "0.2.95"; dependencies = []; };
         testt."0.1.0" = {
           name = "testt";
           version = "0.1.0";
-          dependencies = [
-            { name = "libc"; req = "^0.1.0"; }
-            { name = "liba"; package = "libc"; req = "^0.2.0"; }
+          dependencies = map sanitizeDep [
+            { name = "libc"; req = "^0.1.0"; kind = "normal"; }
+            { name = "liba"; package = "libc"; req = "^0.2.0"; kind = "normal"; }
           ];
         };
       };
@@ -319,14 +321,26 @@ in rec {
           dependencies = [
             {
               name = "libc";
+              package = "libc";
               req = "^0.1.0";
               resolved = "libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)";
+              kind = "normal";
+              optional = false;
+              features = [];
+              default_features = true;
+              target = null;
             }
             {
               name = "liba";
+              rename = "liba";
               package = "libc";
               req = "^0.2.0";
               resolved = "libc 0.2.95 (registry+https://github.com/rust-lang/crates.io-index)";
+              kind = "normal";
+              optional = false;
+              features = [];
+              default_features = true;
+              target = null;
             }
           ];
         };

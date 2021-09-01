@@ -19,6 +19,12 @@ configurePhase() {
         exit 0
     fi
 
+    crateName="$(jq --raw-output '.lib.name // (.package.name // "" | gsub("-"; "_"))' "$cargoTomlJson")"
+    if [[ -z "$crateName" ]]; then
+        echo "Package name must be set"
+        exit 1
+    fi
+
     edition="$(jq --raw-output '.package.edition // .lib.edition // ""' "$cargoTomlJson")"
     if [[ -n "$edition" ]]; then
         buildFlagsArray+=(--edition "$edition")
@@ -63,6 +69,7 @@ configurePhase() {
 
     addFeatures buildFlagsArray $features
     setCargoCommonBuildEnv
+    export CARGO_CRATE_NAME="$crateName"
 
     collectTransDeps $dev/rust-support/deps-closure $dependencies
     buildFlagsArray+=(-L "dependency=$dev/rust-support/deps-closure")

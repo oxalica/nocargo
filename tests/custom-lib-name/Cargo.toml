@@ -1,0 +1,13 @@
+[package]
+name = "custom-lib-name"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "custom"
+
+[dependencies]
+color-rs = "0.6.1"
+renamed = { package = "color-rs", version = "0.5.0" }

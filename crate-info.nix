@@ -95,7 +95,7 @@ rec {
       inherit name features yanked links;
       version = vers;
       sha256 = cksum;
-      dependencies = deps;
+      dependencies = map sanitizeDep deps;
       src = fetchurl {
         # Use the same name as nixpkgs to benifit from cache.
         # https://github.com/NixOS/nixpkgs/pull/122158/files#diff-eb8b8729bfd36f8878c2d8a99f67a2bebb912e9f78c5d2a72457b1f572e26986R67
@@ -103,6 +103,37 @@ rec {
         url = mkDownloadUrl name vers;
         sha256 = cksum;
       };
+    };
+
+  # Sanitize a dependency reference.
+  # Handling `package` and fill missing fields.
+  sanitizeDep =
+    { name
+    , package ? name
+    , version ? null # Cargo.toml use `version`
+    , req ? version
+    , features ? []
+    , optional ? false
+    , default_features ? true
+    , target ? null
+    , kind
+    , ...
+    }@args: args // {
+      inherit name package req features optional default_features target kind;
+
+      # Note that `package` == `name` is not the same as omitting `package`.
+      # See: https://github.com/rust-lang/cargo/issues/6827
+      # Here we let `package` fallback to name, but set a special `rename` to the renamed `name`
+      # if `package` != `name`. `rename` will affect the `--extern` flags.
+      #
+      # For remind:
+      # - `name` is used for coresponding feature name for optional dependencies.
+      # - `package` is used for the original package name of dependency crate.
+      #   - If `package` isn't set, the code name (for `use` or `extern crate`) of the dependency is its lib name.
+      #     `--extern` also use its own lib name.
+      #   - If `package` is set, the code name and `--extern` both use the renamed `name`.
+    } // optionalAttrs (args.package or null != null) {
+      rename = replaceStrings ["-"] ["_"] name;
     };
 
   # Build a simplified crate into from a parsed Cargo.toml.
@@ -138,6 +169,10 @@ rec {
                 "git+${v.git}"
             else
               null;
+
+        # See `sanitizeDep`
+        } // optionalAttrs (v.package or null != null) {
+          rename = replaceStrings ["-"] ["_"] name;
         });
 
     collectTargetDeps = target: { dependencies ? {}, devDependencies ? {}, buildDependencies ? {}, ... }:
@@ -169,6 +204,7 @@ rec {
         dependencies = [
           {
             name = "liboldc";
+            rename = "liboldc";
             package = "libc";
             default_features = true;
             features = [ ];

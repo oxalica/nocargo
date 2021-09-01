@@ -1,12 +1,10 @@
 { lib, stdenv, buildPackages, rust, toml2json, jq }:
-let toCrateName = lib.replaceStrings [ "-" ] [ "_" ]; in
 { pname
-, crateName ? toCrateName pname
 , version
 , src
 , rustc ? buildPackages.rustc
 , links ? null
-# [ { name = "foo"; drv = <derivation>; } ]
+# [ { rename = "foo" /* or null */; drv = <derivation>; } ]
 , dependencies ? []
 # Normal dependencies with non empty `links`, which will propagate `DEP_<LINKS>_<META>` environments to build script.
 , linksDependencies ? dependencies
@@ -24,16 +22,15 @@ let
   mkRustcMeta = dependencies: features: let
     deps = lib.concatMapStrings (dep: dep.drv.rustcMeta) dependencies;
     feats = lib.concatStringsSep ";" features;
-    final = "${crateName} ${version} ${feats} ${deps}";
+    final = "${pname} ${version} ${feats} ${deps}";
   in
     lib.substring 0 16 (builtins.hashString "sha256" final);
 
   buildRustcMeta = mkRustcMeta buildDependencies [];
   rustcMeta = mkRustcMeta dependencies [];
 
-  mkDeps = map ({ name, drv, ... }: lib.concatStringsSep ":" [
-    (toCrateName name)
-    "lib${drv.crateName}-${drv.rustcMeta}"
+  mkDeps = map ({ rename, drv, ... }: lib.concatStringsSep ":" [
+    (toString rename)
     drv.out
     drv.dev
   ]);
@@ -47,7 +44,7 @@ let
   profileExt = if profile == "dev" then "-debug" else "";
 
   commonArgs = {
-    inherit crateName version src;
+    inherit pname version src;
 
     nativeBuildInputs = [ toml2json jq ] ++ nativeBuildInputs;
 
@@ -64,7 +61,6 @@ let
     RUSTC = "${rustc}/bin/rustc";
   } // removeAttrs args [
     "pname"
-    "crateName"
     "version"
     "src"
     "rustc"
@@ -95,7 +91,6 @@ let
   }) (lib.nocargo.platformToCfgAttrs stdenv.hostPlatform);
 
   buildDrv = stdenv.mkDerivation ({
-    pname = "rust_${pname}${profileExt}-build";
     name = "rust_${pname}${profileExt}-build-${version}";
     builder = ./builder-build-script.sh;
     inherit propagatedBuildInputs builderCommon features;
@@ -109,7 +104,6 @@ let
   } // commonArgs // buildScriptProfile);
 
   buildOutDrv = stdenv.mkDerivation ({
-    pname = "rust_${pname}${profileExt}-build-out";
     name = "rust_${pname}${profileExt}-build-out-${version}";
     builder = ./builder-build-script-run.sh;
     inherit propagatedBuildInputs buildDrv builderCommon links;
@@ -120,7 +114,6 @@ let
   } // commonArgs // cargoCfgs);
 
   libDrv = stdenv.mkDerivation ({
-    pname = "rust_${pname}${profileExt}";
     name = "rust_${pname}${profileExt}-${version}";
 
     builder = ./builder-lib.sh;
@@ -136,10 +129,12 @@ let
   } // commonArgs);
 
   binDrv = stdenv.mkDerivation ({
-    pname = "rust_${pname}${profileExt}-bin";
     name = "rust_${pname}${profileExt}-bin-${version}";
     builder = ./builder-bin.sh;
-    inherit propagatedBuildInputs builderCommon buildOutDrv libDrv features rustcMeta;
+    inherit propagatedBuildInputs builderCommon buildOutDrv features rustcMeta;
+
+    libOutDrv = libDrv.out;
+    libDevDrv = libDrv.dev;
 
     # This requires link.
     # Include transitively propagated upstream `-sys` crates' ld dependencies.

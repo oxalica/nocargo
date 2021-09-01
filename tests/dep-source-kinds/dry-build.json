@@ -16,7 +16,7 @@
         "profile": "release",
         "version": "1.3.2"
       },
-      "name": "bitflags"
+      "rename": null
     },
     {
       "drv": {
@@ -30,7 +30,7 @@
         "profile": "release",
         "version": "1.0.0"
       },
-      "name": "cfg-if2"
+      "rename": "cfg_if2"
     },
     {
       "drv": {
@@ -44,7 +44,7 @@
         "profile": "release",
         "version": "1.0.4"
       },
-      "name": "semver1"
+      "rename": "semver1"
     },
     {
       "drv": {
@@ -58,7 +58,7 @@
         "profile": "release",
         "version": "1.0.4"
       },
-      "name": "semver2"
+      "rename": "semver2"
     },
     {
       "drv": {
@@ -72,7 +72,7 @@
         "profile": "release",
         "version": "1.0.4"
       },
-      "name": "semver3"
+      "rename": "semver3"
     },
     {
       "drv": {
@@ -86,7 +86,7 @@
         "profile": "release",
         "version": "1.0.4"
       },
-      "name": "semver4"
+      "rename": "semver4"
     }
   ],
   "features": [],

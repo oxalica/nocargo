@@ -22,7 +22,7 @@
               "profile": "release",
               "version": "1.0.126"
             },
-            "name": "serde"
+            "rename": null
           }
         ],
         "features": [
@@ -36,7 +36,7 @@
         "profile": "release",
         "version": "1.0.0"
       },
-      "name": "semver"
+      "rename": null
     }
   ],
   "features": [],

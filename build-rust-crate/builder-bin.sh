@@ -100,11 +100,8 @@ configurePhase() {
     echo "Binaries to be built: ${!buildFlagsMap[*]}"
 
     # Implicitly link library of current crate, if exists.
-    local libName="lib$crateName-$rustcMeta"
-    if [[ -e "$libDrv/lib/$libName$sharedLibraryExt" ]]; then
-        buildFlagsArray+=(--extern "$crateName=$libDrv/lib/$libName$sharedLibraryExt")
-    elif [[ -e "$libDrv/lib/$libName.rlib" ]]; then
-        buildFlagsArray+=(--extern "$crateName=$libDrv/lib/$libName.rlib")
+    if [[ -e "$libDevDrv"/lib ]]; then
+        addExternFlags buildFlagsArray link ":$libOutDrv:$libDevDrv"
     fi
 
     # Actually unused.
@@ -129,6 +126,7 @@ buildPhase() {
 
     local binName
     for binName in "${!buildFlagsMap[@]}"; do
+        export CARGO_CRATE_NAME="$binName"
         export CARGO_BIN_NAME="$binName"
         runRustc "Building binary $binName" \
             ${buildFlagsMap["$binName"]} \

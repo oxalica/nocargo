@@ -17,7 +17,7 @@
         "profile": "release",
         "version": "0.1.12"
       },
-      "name": "liboldc"
+      "rename": "liboldc"
     },
     {
       "drv": {
@@ -33,7 +33,7 @@
               "profile": "release",
               "version": "1.0.1"
             },
-            "name": "autocfg"
+            "rename": null
           }
         ],
         "capLints": "allow",
@@ -58,7 +58,7 @@
                     "profile": "release",
                     "version": "0.2.95"
                   },
-                  "name": "libc"
+                  "rename": null
                 }
               ],
               "features": [],
@@ -68,7 +68,7 @@
               "profile": "release",
               "version": "1.13.0"
             },
-            "name": "num_cpus"
+            "rename": null
           },
           {
             "drv": {
@@ -82,7 +82,7 @@
               "profile": "release",
               "version": "0.2.6"
             },
-            "name": "pin-project-lite"
+            "rename": null
           },
           {
             "drv": {
@@ -108,7 +108,7 @@
                           "profile": "release",
                           "version": "0.2.2"
                         },
-                        "name": "unicode-xid"
+                        "rename": null
                       }
                     ],
                     "features": [
@@ -121,7 +121,7 @@
                     "profile": "release",
                     "version": "1.0.27"
                   },
-                  "name": "proc-macro2"
+                  "rename": null
                 },
                 {
                   "drv": {
@@ -147,7 +147,7 @@
                                 "profile": "release",
                                 "version": "0.2.2"
                               },
-                              "name": "unicode-xid"
+                              "rename": null
                             }
                           ],
                           "features": [
@@ -160,7 +160,7 @@
                           "profile": "release",
                           "version": "1.0.27"
                         },
-                        "name": "proc-macro2"
+                        "rename": null
                       }
                     ],
                     "features": [
@@ -173,7 +173,7 @@
                     "profile": "release",
                     "version": "1.0.9"
                   },
-                  "name": "quote"
+                  "rename": null
                 },
                 {
                   "drv": {
@@ -199,7 +199,7 @@
                                 "profile": "release",
                                 "version": "0.2.2"
                               },
-                              "name": "unicode-xid"
+                              "rename": null
                             }
                           ],
                           "features": [
@@ -212,7 +212,7 @@
                           "profile": "release",
                           "version": "1.0.27"
                         },
-                        "name": "proc-macro2"
+                        "rename": null
                       },
                       {
                         "drv": {
@@ -238,7 +238,7 @@
                                       "profile": "release",
                                       "version": "0.2.2"
                                     },
-                                    "name": "unicode-xid"
+                                    "rename": null
                                   }
                                 ],
                                 "features": [
@@ -251,7 +251,7 @@
                                 "profile": "release",
                                 "version": "1.0.27"
                               },
-                              "name": "proc-macro2"
+                              "rename": null
                             }
                           ],
                           "features": [
@@ -264,7 +264,7 @@
                           "profile": "release",
                           "version": "1.0.9"
                         },
-                        "name": "quote"
+                        "rename": null
                       },
                       {
                         "drv": {
@@ -280,7 +280,7 @@
                           "profile": "release",
                           "version": "0.2.2"
                         },
-                        "name": "unicode-xid"
+                        "rename": null
                       }
                     ],
                     "features": [
@@ -299,7 +299,7 @@
                     "profile": "release",
                     "version": "1.0.72"
                   },
-                  "name": "syn"
+                  "rename": null
                 }
               ],
               "features": [],
@@ -309,7 +309,7 @@
               "profile": "release",
               "version": "1.2.0"
             },
-            "name": "tokio-macros"
+            "rename": null
           }
         ],
         "features": [
@@ -326,7 +326,7 @@
         "profile": "release",
         "version": "1.6.1"
       },
-      "name": "tokio"
+      "rename": null
     }
   ],
   "features": [],

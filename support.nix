@@ -85,7 +85,7 @@ rec {
 
       selectDeps = pkgs: deps: features: selectKind: onlyLinks:
         map
-          (dep: { name = dep.name; drv = pkgs.${dep.resolved}; })
+          (dep: { rename = dep.rename or null; drv = pkgs.${dep.resolved}; })
           (filter
             ({ kind, name, optional, targetEnabled, resolved, ... }@dep:
               targetEnabled && kind == selectKind
