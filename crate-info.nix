@@ -190,8 +190,8 @@ rec {
         mapAttrsToList collectTargetDeps target;
     };
 
-  crate-info-from-toml-tests = { assertDeepEq, ... }: {
-    crate-info-from-toml = let
+  crate-info-from-toml-tests = { assertEq, ... }: {
+    simple = let
       cargoToml = fromTOML (readFile ./tests/tokio-app/Cargo.toml);
       info = mkCrateInfoFromCargoToml cargoToml "<src>";
 
@@ -228,6 +228,6 @@ rec {
         ];
       };
     in
-      assertDeepEq info expected;
+      assertEq info expected;
   };
 }

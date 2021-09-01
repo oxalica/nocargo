@@ -34,63 +34,103 @@
 
     checks."x86_64-linux" = let
 
-      assertEqMsg = msg: lhs: rhs: {
-        assertion = lhs == rhs;
-        message = "${msg}: `${toString lhs}` != `${toString rhs}`";
+      inherit (lib)
+        isDerivation isFunction isAttrs mapAttrs mapAttrsToList listToAttrs replaceStrings flatten;
+      inherit (builtins) readFile fromJSON toJSON typeOf;
+
+      okDrv = pkgs.runCommand "ok" {} "touch $out";
+
+      checkArgs = {
+        inherit pkgs;
+
+        assertEq = got: expect: {
+          __assertion = true;
+          fn = name:
+            if toJSON got == toJSON expect
+              then okDrv
+              else pkgs.runCommand name {
+                nativeBuildInputs = [ pkgs.jq ];
+                got = toJSON got;
+                expect = toJSON expect;
+              } ''
+                if [[ ''${#got} < 32 && ''${#expect} < 32 ]]; then
+                  echo "got:    $got"
+                  echo "expect: $expect"
+                else
+                  echo "got:"
+                  jq . <<<"$got"
+                  echo
+                  echo "expect:"
+                  jq . <<<"$got"
+                  echo
+                  echo "diff:"
+                  diff -y <(jq . <<<"$got") <(jq . <<<"$expect")
+                fi
+                exit 1
+              '';
+        };
+
+        assertEqFile = got: expectFile: {
+          __assertion = true;
+          fn = name:
+            let
+              expect = readFile expectFile;
+              got' = toJSON got;
+              expect' = toJSON (fromJSON expect);
+            in
+              if got' == expect'
+                then okDrv
+                else pkgs.runCommand name {
+                  nativeBuildInputs = [ pkgs.jq ];
+                  got = got';
+                } ''
+                  echo "*** Assert failed for file: ${toString expectFile}"
+                  echo "$got"
+                  echo "*** End of file"
+                  exit 1
+                '';
+        };
       };
 
-      assertEq = lhs: rhs: {
-        assertion = lhs == rhs;
-        message = "`${toString lhs}` != `${toString rhs}`";
+      tests = with lib.nocargo; {
+        _0000-semver-compare-tests = semver-compare-tests;
+        _0001-semver-req-tests = semver-req-tests;
+        _0002-cfg-parser-tests = cfg-parser-tests;
+        # cfg-eval-tests # FIXME
+        _0004-platform-cfg-tests = platform-cfg-tests;
+
+        _0100-crate-info-from-toml-tests = crate-info-from-toml-tests;
+        _0101-update-feature-tests = update-feature-tests;
+        _0102-resolve-feature-tests = resolve-feature-tests;
+
+        _0200-resolve-deps-tests = resolve-deps-tests;
+        _0201-build-from-src-dry-tests = build-from-src-dry-tests;
+
+        _1000-build-tests = let
+          mkHelloWorld = name: drv: pkgs.runCommand "build-tests-${drv.name}" {} ''
+            name="${replaceStrings ["-dev" "-"] ["" "_"] name}"
+            got="$("${drv.bin}/bin/$name")"
+            expect="Hello, world!"
+            echo "Got   : $got"
+            echo "Expect: $got"
+            [[ "$got" == "$expect" ]]
+            touch $out
+          '';
+        in
+          mapAttrs mkHelloWorld (import ./tests { inherit pkgs; });
       };
 
-      assertDeepEq = lhs: rhs: let
-        lhs' = builtins.toJSON lhs;
-        rhs' = builtins.toJSON rhs;
-      in {
-        assertion = lhs' == rhs';
-        message = "\nLhs:\n${lhs'}\nRhs:\n${rhs'}";
-      };
+      flattenTests = prefix: v:
+        if isDerivation v then { name = prefix; value = v; }
+        else if v ? __assertion then { name = prefix; value = v.fn prefix; }
+        else if isFunction v then flattenTests prefix (v checkArgs)
+        else if isAttrs v then mapAttrsToList (name: flattenTests "${prefix}-${name}") v
+        else throw "Unexpect test type: ${typeOf v}";
 
-      assertFns = { inherit assertEq assertEqMsg assertDeepEq; };
+      tests' = listToAttrs (flatten (mapAttrsToList flattenTests tests));
 
-      assertions =
-        lib.nocargo.version-req-tests assertFns //
-        lib.nocargo.cfg-parser-tests assertFns //
-        lib.nocargo.platform-cfg-tests assertFns //
-        lib.nocargo.feature-tests assertFns //
-        lib.nocargo.resolve-deps-tests assertFns pkgs.nocargo //
-        lib.nocargo.resolve-features-tests assertFns //
-        lib.nocargo.crate-info-from-toml-tests assertFns //
-        lib.nocargo.build-from-src-dry-tests assertFns { inherit (pkgs) nocargo pkgs; };
-
-      checkDrvs = let
-        mkHelloWorld = name: drv: pkgs.runCommand "check-${drv.name}" {} ''
-          name="${lib.replaceStrings ["-dev" "-"] ["" "_"] name}"
-          got="$("${drv.bin}/bin/$name")"
-          expect="Hello, world!"
-          echo "Got   : $got"
-          echo "Expect: $got"
-          [[ "$got" == "$expect" ]]
-          touch $out
-        '';
-      in
-        lib.mapAttrs mkHelloWorld (import ./tests { inherit pkgs; });
-
-      failedAssertions =
-        lib.filter (msg: msg != null) (
-          lib.flatten (
-            lib.mapAttrsToList
-            (name: asserts:
-              map ({ assertion, message }: if assertion
-                then null
-                else "Assertion `${name}` failed: ${message}\n"
-              ) (lib.flatten [asserts]))
-            assertions));
-
-    in if failedAssertions == []
-      then checkDrvs
-      else throw (builtins.toString failedAssertions);
+    in
+      tests';
   };
 }
 

@@ -220,7 +220,7 @@ in rec {
   in
     final';
 
-  feature-tests = { assertEq, ... }: let
+  update-feature-tests = { assertEq, ... }: let
     testUpdate = defs: features: expect: let
       init = mapAttrs (k: v: false) defs;
       out = enableFeatures "pkgId" defs init features;
@@ -228,44 +228,108 @@ in rec {
     in
       assertEq enabled expect;
   in {
-    feature-simple1 = testUpdate { a = []; } [] [];
-    feature-simple2 = testUpdate { a = []; } [ "a" ] [ "a" ];
-    feature-simple3 = testUpdate { a = []; } [ "a" "a" ] [ "a" ];
-    feature-simple4 = testUpdate { a = []; b = []; } [ "a" ] [ "a" ];
-    feature-simple5 = testUpdate { a = []; b = []; } [ "a" "b" ] [ "a" "b" ];
-    feature-simple6 = testUpdate { a = []; b = []; } [ "a" "b" "a" ] [ "a" "b" ];
+    simple1 = testUpdate { a = []; } [] [];
+    simple2 = testUpdate { a = []; } [ "a" ] [ "a" ];
+    simple3 = testUpdate { a = []; } [ "a" "a" ] [ "a" ];
+    simple4 = testUpdate { a = []; b = []; } [ "a" ] [ "a" ];
+    simple5 = testUpdate { a = []; b = []; } [ "a" "b" ] [ "a" "b" ];
+    simple6 = testUpdate { a = []; b = []; } [ "a" "b" "a" ] [ "a" "b" ];
 
   } // (let defs = { a = []; b = [ "a" ]; }; in {
-    feature-link1 = testUpdate defs [ "a" ] [ "a" ];
-    feature-link2 = testUpdate defs [ "b" "a" ] [ "a" "b" ];
-    feature-link3 = testUpdate defs [ "b" ] [ "a" "b" ];
-    feature-link4 = testUpdate defs [ "b" "a" ] [ "a" "b" ];
-    feature-link5 = testUpdate defs [ "b" "b" ] [ "a" "b" ];
+    link1 = testUpdate defs [ "a" ] [ "a" ];
+    link2 = testUpdate defs [ "b" "a" ] [ "a" "b" ];
+    link3 = testUpdate defs [ "b" ] [ "a" "b" ];
+    link4 = testUpdate defs [ "b" "a" ] [ "a" "b" ];
+    link5 = testUpdate defs [ "b" "b" ] [ "a" "b" ];
 
   }) // (let defs = { a = []; b = [ "a" ]; c = [ "a" ]; }; in {
-    feature-common1 = testUpdate defs [ "a" ] [ "a" ];
-    feature-common2 = testUpdate defs [ "b" ] [ "a" "b" ];
-    feature-common3 = testUpdate defs [ "a" "b" ] [ "a" "b" ];
-    feature-common4 = testUpdate defs [ "b" "a" ] [ "a" "b" ];
-    feature-common5 = testUpdate defs [ "b" "c" ] [ "a" "b" "c" ];
-    feature-common6 = testUpdate defs [ "a" "b" "c" ] [ "a" "b" "c" ];
-    feature-common7 = testUpdate defs [ "b" "c" "b" ] [ "a" "b" "c" ];
+    common1 = testUpdate defs [ "a" ] [ "a" ];
+    common2 = testUpdate defs [ "b" ] [ "a" "b" ];
+    common3 = testUpdate defs [ "a" "b" ] [ "a" "b" ];
+    common4 = testUpdate defs [ "b" "a" ] [ "a" "b" ];
+    common5 = testUpdate defs [ "b" "c" ] [ "a" "b" "c" ];
+    common6 = testUpdate defs [ "a" "b" "c" ] [ "a" "b" "c" ];
+    common7 = testUpdate defs [ "b" "c" "b" ] [ "a" "b" "c" ];
 
   }) // (let defs = { a = [ "b" "c" ]; b = [ "d" "e" ]; c = [ "f" "g"]; d = []; e = []; f = []; g = []; }; in {
-    feature-tree1 = testUpdate defs [ "a" ] [ "a" "b" "c" "d" "e" "f" "g" ];
-    feature-tree2 = testUpdate defs [ "b" ] [ "b" "d" "e" ];
-    feature-tree3 = testUpdate defs [ "d" ] [ "d" ];
-    feature-tree4 = testUpdate defs [ "d" "b" "g" ] [ "b" "d" "e" "g" ];
-    feature-tree5 = testUpdate defs [ "c" "e" "f" ] [ "c" "e" "f" "g" ];
+    tree1 = testUpdate defs [ "a" ] [ "a" "b" "c" "d" "e" "f" "g" ];
+    tree2 = testUpdate defs [ "b" ] [ "b" "d" "e" ];
+    tree3 = testUpdate defs [ "d" ] [ "d" ];
+    tree4 = testUpdate defs [ "d" "b" "g" ] [ "b" "d" "e" "g" ];
+    tree5 = testUpdate defs [ "c" "e" "f" ] [ "c" "e" "f" "g" ];
 
   }) // (let defs = { a = [ "b" ]; b = [ "c" ]; c = [ "b" ]; }; in {
-    feature-cycle1 = testUpdate defs [ "b" ] [ "b" "c" ];
-    feature-cycle2 = testUpdate defs [ "c" ] [ "b" "c" ];
-    feature-cycle3 = testUpdate defs [ "a" ] [ "a" "b" "c" ];
+    cycle1 = testUpdate defs [ "b" ] [ "b" "c" ];
+    cycle2 = testUpdate defs [ "c" ] [ "b" "c" ];
+    cycle3 = testUpdate defs [ "a" ] [ "a" "b" "c" ];
   });
 
-  resolve-deps-tests = { assertDeepEq, ... }: nocargo: {
-    resolve-deps-simple = let
+  resolve-feature-tests = { assertEq, ... }: let
+    test = pkgSet: rootId: rootFeatures: expect: let
+      resolved = resolveFeatures { inherit pkgSet rootId rootFeatures; };
+      expect' = mapAttrs (id: feats: sort (a: b: a < b) feats) expect;
+    in
+      assertEq resolved expect';
+
+    pkgSet1 = {
+      a = {
+        features = { foo = [ "bar" ]; bar = []; baz = [ "b" ]; };
+        dependencies = [
+          { name = "b"; resolved = "b-id"; optional = true; default_features = true; features = [ "a" ]; }
+          { name = "unused"; resolved = null; optional = true; default_features = true; features = []; }
+        ];
+      };
+      b-id = {
+        features = { default = []; foo = []; bar = [ "foo" ]; a = []; };
+        dependencies = [];
+      };
+    };
+
+    pkgSet2 = {
+      my-id = {
+        features = { default = [ "tokio/macros" ]; };
+        dependencies = [
+          { name = "tokio"; resolved = "tokio-id"; optional = false; default_features = false; features = [ "fs" ]; }
+          { name = "dep"; resolved = "dep-id"; optional = false; default_features = true; features = []; }
+        ];
+      };
+      dep-id = {
+        features = { default = [ "tokio/sync" ]; };
+        dependencies = [
+          { name = "tokio"; resolved = "tokio-id"; optional = false; default_features = false; features = [ "sync" ]; }
+        ];
+      };
+      tokio-id = {
+        features = { default = []; fs = []; sync = []; macros = []; io = []; };
+        dependencies = [];
+      };
+    };
+
+  in {
+    simple = test pkgSet1 "a" [ "foo" ] {
+      a = [ "foo" "bar" ];
+      b-id = [ ];
+    };
+
+    depend = test pkgSet1 "a" [ "foo" "baz" ] {
+      a = [ "foo" "bar" "baz" "b" ];
+      b-id = [ "default" "a" ];
+    };
+
+    override = test pkgSet1 "a" [ "b/bar" ] {
+      a = [ "b" ];
+      b-id = [ "default" "a" "bar" "foo" ];
+    };
+
+    merge = test pkgSet2 "my-id" [ "default" ] {
+      my-id = [ "default" ];
+      dep-id = [ "default" ];
+      tokio-id = [ "fs" "sync" "macros" ];
+    };
+  };
+
+  resolve-deps-tests = { assertEq, assertEqFile, pkgs, ... }: {
+    simple = let
       inherit (lib.nocargo) sanitizeDep;
 
       index = {
@@ -349,13 +413,12 @@ in rec {
       getCrateInfo = { name, version, ... }: index.${name}.${version};
       resolved = resolveDepsFromLock getCrateInfo lock;
     in
-      assertDeepEq resolved expected;
+      assertEq resolved expected;
 
-    resolve-deps-tokio-app = let
+    tokio-app = let
       lock = fromTOML (readFile ./tests/tokio-app/Cargo.lock);
-      expected = readFile ./tests/tokio-app/Cargo.lock.resolved.json;
 
-      registry-crates-io = nocargo.defaultRegistries."https://github.com/rust-lang/crates.io-index";
+      registry-crates-io = pkgs.nocargo.defaultRegistries."https://github.com/rust-lang/crates.io-index";
 
       cargoToml = fromTOML (readFile ./tests/tokio-app/Cargo.toml);
       info = mkCrateInfoFromCargoToml cargoToml "<src>";
@@ -373,70 +436,6 @@ in rec {
         }
       ) resolved;
     in
-      assertDeepEq resolved' (fromJSON expected); # Normalize.
-  };
-
-  resolve-features-tests = { assertDeepEq, ... }: let
-    test = pkgSet: rootId: rootFeatures: expect: let
-      resolved = resolveFeatures { inherit pkgSet rootId rootFeatures; };
-      expect' = mapAttrs (id: feats: sort (a: b: a < b) feats) expect;
-    in
-      assertDeepEq resolved expect';
-
-    pkgSet1 = {
-      a = {
-        features = { foo = [ "bar" ]; bar = []; baz = [ "b" ]; };
-        dependencies = [
-          { name = "b"; resolved = "b-id"; optional = true; default_features = true; features = [ "a" ]; }
-          { name = "unused"; resolved = null; optional = true; default_features = true; features = []; }
-        ];
-      };
-      b-id = {
-        features = { default = []; foo = []; bar = [ "foo" ]; a = []; };
-        dependencies = [];
-      };
-    };
-
-    pkgSet2 = {
-      my-id = {
-        features = { default = [ "tokio/macros" ]; };
-        dependencies = [
-          { name = "tokio"; resolved = "tokio-id"; optional = false; default_features = false; features = [ "fs" ]; }
-          { name = "dep"; resolved = "dep-id"; optional = false; default_features = true; features = []; }
-        ];
-      };
-      dep-id = {
-        features = { default = [ "tokio/sync" ]; };
-        dependencies = [
-          { name = "tokio"; resolved = "tokio-id"; optional = false; default_features = false; features = [ "sync" ]; }
-        ];
-      };
-      tokio-id = {
-        features = { default = []; fs = []; sync = []; macros = []; io = []; };
-        dependencies = [];
-      };
-    };
-
-  in {
-    resolve-features-simple = test pkgSet1 "a" [ "foo" ] {
-      a = [ "foo" "bar" ];
-      b-id = [ ];
-    };
-
-    resolve-features-depend = test pkgSet1 "a" [ "foo" "baz" ] {
-      a = [ "foo" "bar" "baz" "b" ];
-      b-id = [ "default" "a" ];
-    };
-
-    resolve-features-override = test pkgSet1 "a" [ "b/bar" ] {
-      a = [ "b" ];
-      b-id = [ "default" "a" "bar" "foo" ];
-    };
-
-    resolve-features-merge = test pkgSet2 "my-id" [ "default" ] {
-      my-id = [ "default" ];
-      dep-id = [ "default" ];
-      tokio-id = [ "fs" "sync" "macros" ];
-    };
+      assertEqFile resolved' ./tests/tokio-app/Cargo.lock.resolved.json; # Normalize.
   };
 }

@@ -135,24 +135,23 @@ rec {
     in
       pkgs.${rootId};
 
-  build-from-src-dry-tests = { assertDeepEq, ... }: { nocargo, pkgs }: let
+  build-from-src-dry-tests = { assertEqFile, pkgs, ... }: let
     buildRustCrateFromSrcAndLock' = buildRustCrateFromSrcAndLock {
-      inherit (nocargo) defaultRegistries;
       inherit (pkgs) stdenv buildPackages;
+      inherit (pkgs.nocargo) defaultRegistries;
       buildRustCrate = args: removeAttrs args [ "src" "rustc" ];
     };
     test = src: args: test' src (src + "/dry-build.json") args;
     test' = src: expectFile: args: let
       got = buildRustCrateFromSrcAndLock' ({ inherit src; } // args);
-      expect = fromJSON (readFile expectFile);
     in
-      assertDeepEq got expect;
+      assertEqFile got expectFile;
   in
   {
-    build-from-src-dry-simple-features = test ./tests/simple-features {};
-    build-from-src-dry-dependent = test ./tests/dependent {};
-    build-from-src-dry-tokio-app = test ./tests/tokio-app {};
-    build-from-src-dry-dep-source-kinds = test ./tests/dep-source-kinds {
+    simple-features = test ./tests/simple-features {};
+    dependent = test ./tests/dependent {};
+    tokio-app = test ./tests/tokio-app {};
+    dep-source-kinds = test ./tests/dep-source-kinds {
       gitSources = {
         "https://github.com/dtolnay/semver?tag=1.0.4" = ./tests/dep-source-kinds/fake-semver;
         "git://github.com/dtolnay/semver?branch=master" = ./tests/dep-source-kinds/fake-semver;
@@ -160,10 +159,10 @@ rec {
         "ssh://git@github.com/dtolnay/semver" = ./tests/dep-source-kinds/fake-semver;
       };
     };
-    build-from-src-dry-openssl = test ./tests/test-openssl {};
-    build-from-src-dry-libz-link = test ./tests/libz-link {};
+    openssl = test ./tests/test-openssl {};
+    libz-link = test ./tests/libz-link {};
 
-    build-from-src-dry-dependent-overrided = test' ./tests/dependent ./tests/dependent/dry-build-overrided.json {
+    dependent-overrided = test' ./tests/dependent ./tests/dependent/dry-build-overrided.json {
       buildCrateOverrides."" = old: { a = "b"; };
       buildCrateOverrides."serde 1.0.126 (registry+https://github.com/rust-lang/crates.io-index)" = old: {
         buildInputs = [ "some-inputs" ];

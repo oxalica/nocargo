@@ -139,20 +139,20 @@ rec {
     else
       !evalCfgExpr cfgs (elemAt tree.values 0);
 
-  cfg-parser-tests = { assertEq, assertDeepEq, ... }: let
+  cfg-parser-tests = { assertEq, ... }: let
     shouldParse = cfg: expect:
-      assertDeepEq (parseTargetCfgExpr cfg) expect;
+      assertEq (tryEval (parseTargetCfgExpr cfg)) { success = true; value = expect; };
     shouldNotParse = cfg:
-      assertEq (tryEval (parseTargetCfgExpr cfg)).success false;
+      assertEq (tryEval (parseTargetCfgExpr cfg)) { success = false; value = false; };
   in {
-    cfg-parse-simple-target1 = shouldParse "thumbv8m.base-none-eabi"
+    simple-target1 = shouldParse "thumbv8m.base-none-eabi"
       { key = "target"; value = "thumbv8m.base-none-eabi"; };
-    cfg-parse-simple-target2 = shouldParse "aarch64-unknown-linux-gnu"
+    simple-target2 = shouldParse "aarch64-unknown-linux-gnu"
       { key = "target"; value = "aarch64-unknown-linux-gnu"; };
 
-    cfg-parse-simple1 = shouldParse "cfg(atom)" { key = "atom"; };
-    cfg-parse-simple2 = shouldParse ''cfg(k = "v")'' { key = "k"; value = "v"; };
-    cfg-parse-complex = shouldParse ''cfg( all ( not ( a , ) , b , all ( ) , any ( c , d = "e" ) , ) )''
+    simple1 = shouldParse "cfg(atom)" { key = "atom"; };
+    simple2 = shouldParse ''cfg(k = "v")'' { key = "k"; value = "v"; };
+    complex = shouldParse ''cfg( all ( not ( a , ) , b , all ( ) , any ( c , d = "e" ) , ) )''
       {
         fn = "all";
         values = [
@@ -175,18 +175,18 @@ rec {
         ];
       };
 
-    cfg-parse-invalid-cfg1 = shouldNotParse "cfg (a)";
-    cfg-parse-invalid-cfg2 = shouldNotParse "cfg()";
-    cfg-parse-invalid-cfg3 = shouldNotParse "cfg(a,b)";
-    cfg-parse-invalid-not1 = shouldNotParse "cfg(not(a,b))";
-    cfg-parse-invalid-not2 = shouldNotParse "cfg(not())";
-    cfg-parse-invalid-comma1 = shouldNotParse "cfg(all(,))";
-    cfg-parse-invalid-comma2 = shouldNotParse "cfg(all(a,,b))";
-    cfg-parse-invalid-comma3 = shouldNotParse "cfg(all(a,b,,))";
-    cfg-parse-invalid-comma4 = shouldNotParse "cfg(all(a b))";
-    cfg-parse-invalid-comma5 = shouldNotParse "cfg(all(any() any()))";
-    cfg-parse-invalid-paren1 = shouldNotParse "cfg(all(a)))";
-    cfg-parse-invalid-paren2 = shouldNotParse "cfg(all(a)";
+    invalid-cfg1 = shouldNotParse "cfg (a)";
+    invalid-cfg2 = shouldNotParse "cfg()";
+    invalid-cfg3 = shouldNotParse "cfg(a,b)";
+    invalid-not1 = shouldNotParse "cfg(not(a,b))";
+    invalid-not2 = shouldNotParse "cfg(not())";
+    invalid-comma1 = shouldNotParse "cfg(all(,))";
+    invalid-comma2 = shouldNotParse "cfg(all(a,,b))";
+    invalid-comma3 = shouldNotParse "cfg(all(a,b,,))";
+    invalid-comma4 = shouldNotParse "cfg(all(a b))";
+    invalid-comma5 = shouldNotParse "cfg(all(any() any()))";
+    invalid-paren1 = shouldNotParse "cfg(all(a)))";
+    invalid-paren2 = shouldNotParse "cfg(all(a)";
   };
 
   cfg-eval-tests = { assertEq, ... }: let
@@ -198,39 +198,39 @@ rec {
     ];
     test = cfg: expect: assertEq (evalTargetCfgStr cfgs cfg) expect;
   in {
-    cfg-eval-simple1 = test ''cfg(foo)'' true;
-    cfg-eval-simple2 = test ''cfg(baz)'' false;
-    cfg-eval-simple3 = test ''cfg(feature = "foo")'' true;
-    cfg-eval-simple4 = test ''cfg(foo = "")'' false;
-    cfg-eval-simple5 = test ''cfg(wtf = "foo")'' false;
+    simple1 = test ''cfg(foo)'' true;
+    simple2 = test ''cfg(baz)'' false;
+    simple3 = test ''cfg(feature = "foo")'' true;
+    simple4 = test ''cfg(foo = "")'' false;
+    simple5 = test ''cfg(wtf = "foo")'' false;
 
-    cfg-eval-and1  = test ''cfg(and())'' true;
-    cfg-eval-and2  = test ''cfg(and(foo))'' true;
-    cfg-eval-and3  = test ''cfg(and(baz))'' false;
-    cfg-eval-and4  = test ''cfg(and(foo,bar))'' true;
-    cfg-eval-and5  = test ''cfg(and(foo,bar,baz))'' false;
-    cfg-eval-and6  = test ''cfg(and(foo,baz,bar))'' false;
-    cfg-eval-and7  = test ''cfg(and(baz,foo))'' false;
-    cfg-eval-and8  = test ''cfg(and(baz,feature="foo"))'' false;
-    cfg-eval-and9  = test ''cfg(and(baz,feature="wtf"))'' false;
-    cfg-eval-and10 = test ''cfg(and(foo,feature="wtf"))'' true;
+    and1  = test ''cfg(and())'' true;
+    and2  = test ''cfg(and(foo))'' true;
+    and3  = test ''cfg(and(baz))'' false;
+    and4  = test ''cfg(and(foo,bar))'' true;
+    and5  = test ''cfg(and(foo,bar,baz))'' false;
+    and6  = test ''cfg(and(foo,baz,bar))'' false;
+    and7  = test ''cfg(and(baz,foo))'' false;
+    and8  = test ''cfg(and(baz,feature="foo"))'' false;
+    and9  = test ''cfg(and(baz,feature="wtf"))'' false;
+    and10 = test ''cfg(and(foo,feature="wtf"))'' true;
 
-    cfg-eval-any1  = test ''cfg(any())'' false;
-    cfg-eval-any2  = test ''cfg(any(foo))'' true;
-    cfg-eval-any3  = test ''cfg(any(baz))'' false;
-    cfg-eval-any4  = test ''cfg(any(foo,bar))'' true;
-    cfg-eval-any5  = test ''cfg(any(foo,bar,baz))'' true;
-    cfg-eval-any6  = test ''cfg(any(foo,baz,bar))'' true;
-    cfg-eval-any7  = test ''cfg(any(baz,foo))'' true;
-    cfg-eval-any8  = test ''cfg(any(baz,feature="foo"))'' true;
-    cfg-eval-any9  = test ''cfg(any(baz,feature="wtf"))'' false;
-    cfg-eval-any10 = test ''cfg(any(foo,feature="wtf"))'' true;
+    any1  = test ''cfg(any())'' false;
+    any2  = test ''cfg(any(foo))'' true;
+    any3  = test ''cfg(any(baz))'' false;
+    any4  = test ''cfg(any(foo,bar))'' true;
+    any5  = test ''cfg(any(foo,bar,baz))'' true;
+    any6  = test ''cfg(any(foo,baz,bar))'' true;
+    any7  = test ''cfg(any(baz,foo))'' true;
+    any8  = test ''cfg(any(baz,feature="foo"))'' true;
+    any9  = test ''cfg(any(baz,feature="wtf"))'' false;
+    any10 = test ''cfg(any(foo,feature="wtf"))'' true;
 
-    cfg-eval-not1 = test ''cfg(not(foo))'' false;
-    cfg-eval-not2 = test ''cfg(not(wtf))'' true;
+    not1 = test ''cfg(not(foo))'' false;
+    not2 = test ''cfg(not(wtf))'' true;
   };
 
-  platform-cfg-tests = { assertEq, assertDeepEq, ... }: let
+  platform-cfg-tests = { assertEq, ... }: let
     inherit (lib.systems) elaborate;
     test = config: expect: let
       cfgs = platformToCfgs (elaborate config);
@@ -242,7 +242,7 @@ rec {
       assertEq got expect;
 
   in {
-    platform-cfg-attrs-x86_64-linux = assertDeepEq (platformToCfgAttrs (elaborate "x86_64-unknown-linux-gnu")) {
+    attrs-x86_64-linux = assertEq (platformToCfgAttrs (elaborate "x86_64-unknown-linux-gnu")) {
       target_arch = "x86_64";
       target_endian = "little";
       target_env = "gnu";
@@ -254,7 +254,7 @@ rec {
       unix = true;
     };
 
-    platform-cfg-x86_64-linux = test "x86_64-unknown-linux-gnu" ''
+    cfg-x86_64-linux = test "x86_64-unknown-linux-gnu" ''
       target_arch="x86_64"
       target_endian="little"
       target_env="gnu"
@@ -268,7 +268,7 @@ rec {
       unix
     '';
 
-    platform-cfg-aarch64-linux = test "aarch64-unknown-linux-gnu" ''
+    cfg-aarch64-linux = test "aarch64-unknown-linux-gnu" ''
       target_arch="aarch64"
       target_endian="little"
       target_env="gnu"

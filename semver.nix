@@ -165,158 +165,160 @@ in rec {
     else
       throw "Invalid version comparator: `${req}`";
 
-  version-compare-tests = { assertEq, ... }: {
-    version-compare-simple1 = assertEq (compareSemver "1.2.3" "1.2.2") 1;
-    version-compare-simple2 = assertEq (compareSemver "1.2.3" "1.2.3") 0;
-    version-compare-simple3 = assertEq (compareSemver "1.2.3" "1.2.4") (-1);
-    version-compare-simple4 = assertEq (compareSemver "1.2.3" "1.1.3") 1;
-    version-compare-simple5 = assertEq (compareSemver "1.2.3" "1.3.3") (-1);
-    version-compare-simple6 = assertEq (compareSemver "1.2.3" "0.2.3") 1;
-    version-compare-simple7 = assertEq (compareSemver "1.2.3" "2.2.3") (-1);
+  semver-compare-tests = { assertEq, ... }: {
+    compare-simple1 = assertEq (compareSemver "1.2.3" "1.2.2") 1;
+    compare-simple2 = assertEq (compareSemver "1.2.3" "1.2.3") 0;
+    compare-simple3 = assertEq (compareSemver "1.2.3" "1.2.4") (-1);
+    compare-simple4 = assertEq (compareSemver "1.2.3" "1.1.3") 1;
+    compare-simple5 = assertEq (compareSemver "1.2.3" "1.3.3") (-1);
+    compare-simple6 = assertEq (compareSemver "1.2.3" "0.2.3") 1;
+    compare-simple7 = assertEq (compareSemver "1.2.3" "2.2.3") (-1);
   };
 
   # From https://github.com/dtolnay/semver/blob/a03d376560e0c4d16518bc271867b1981c85acf0/tests/test_version_req.rs
-  version-req-tests = { assertEqMsg, ... }: let
+  semver-req-tests = { assertEq, ... }: let
     testMatchReq = req: { yes ? [], no ? [] }: let
+      inherit (lib) const;
       checker = parseSemverReq req;
+      got = map checker (yes ++ no);
+      expect = map (const true) yes ++ map (const false) no;
     in
-      map (ver: assertEqMsg ver (checker ver) true) yes ++
-      map (ver: assertEqMsg ver (checker ver) false) no;
+      assertEq got expect;
   in {
-    version-req-eq1 = testMatchReq "=1.0.0" {
+    eq1 = testMatchReq "=1.0.0" {
       yes = [ "1.0.0" ];
       no  = [ "1.0.1" "0.9.9" "0.10.0" "0.1.0" "1.0.0-pre" ];
     };
-    version-req-default = testMatchReq "^1.0.0" {
+    default = testMatchReq "^1.0.0" {
       yes = [ "1.0.0" "1.1.0" "1.0.1" ];
       no  = [ "0.9.9" "0.10.0" "0.1.0" "1.0.0-pre" "1.0.1-pre" ];
     };
-    version-req-exact1 = testMatchReq "=1.0.0" {
+    exact1 = testMatchReq "=1.0.0" {
       yes = [ "1.0.0" ];
       no  = [ "1.0.1" "0.9.9" "0.10.0" "0.1.0" "1.0.0-pre" ];
     };
-    version-req-exact2 = testMatchReq "=0.9.0" {
+    exact2 = testMatchReq "=0.9.0" {
       yes = [ "0.9.0" ];
       no  = [ "0.9.1" "1.9.0" "0.0.9" "0.9.0-pre" ];
     };
-    version-req-exact3 = testMatchReq "=0.0.2" {
+    exact3 = testMatchReq "=0.0.2" {
       yes = [ "0.0.2" ];
       no  = [ "0.0.1" "0.0.3" "0.0.2-pre" ];
     };
-    version-req-exact4 = testMatchReq "=0.1.0-beta2.a" {
+    exact4 = testMatchReq "=0.1.0-beta2.a" {
       yes = [ "0.1.0-beta2.a" ];
       no  = [ "0.9.1" "0.1.0" "0.1.1-beta2.a" "0.1.0-beta2" ];
     };
-    version-req-exact5 = testMatchReq "=0.1.0" {
+    exact5 = testMatchReq "=0.1.0" {
       yes = [ "0.1.0" "0.1.0+meta" "0.1.0+any" ];
     };
-    version-req-gt1 = testMatchReq ">= 1.0.0" {
+    gt1 = testMatchReq ">= 1.0.0" {
       yes = [ "1.0.0" "2.0.0" ];
       no  = [ "0.1.0" "0.0.1" "1.0.0-pre" "2.0.0-pre" ];
     };
-    version-req-gt2 = testMatchReq ">=2.1.0-alpha2" {
+    gt2 = testMatchReq ">=2.1.0-alpha2" {
       yes = [ "2.1.0-alpha2" "2.1.0-alpha3" "2.1.0" "3.0.0" ];
       no  = [ "2.0.0" "2.1.0-alpha1" "2.0.0-alpha2" "3.0.0-alpha2" ];
     };
-    version-req-lt1 = testMatchReq "<1.0.0" {
+    lt1 = testMatchReq "<1.0.0" {
       yes = [ "0.1.0" "0.0.1" ];
       no  = [ "1.0.0" "1.0.0-beta" "1.0.1" "0.9.9-alpha" ];
     };
-    version-req-le1 = testMatchReq "<= 2.1.0-alpha2" {
+    le1 = testMatchReq "<= 2.1.0-alpha2" {
       yes = [ "2.1.0-alpha2" "2.1.0-alpha1" "2.0.0" "1.0.0" ];
       no  = [ "2.1.0" "2.2.0-alpha1" "2.0.0-alpha2" "1.0.0-alpha2" ];
     };
-    version-req-multi1 = testMatchReq ">1.0.0-alpha, <1.0.0" {
+    multi1 = testMatchReq ">1.0.0-alpha, <1.0.0" {
       yes = [ "1.0.0-beta" ];
     };
-    version-req-multi2 = testMatchReq ">1.0.0-alpha, <1.0" {
+    multi2 = testMatchReq ">1.0.0-alpha, <1.0" {
       no  = [ "1.0.0-beta" ];
     };
-    version-req-multi3 = testMatchReq ">1.0.0-alpha, <1" {
+    multi3 = testMatchReq ">1.0.0-alpha, <1" {
       no  = [ "1.0.0-beta" ];
     };
-    version-req-multi4 = testMatchReq "> 0.0.9, <= 2.5.3" {
+    multi4 = testMatchReq "> 0.0.9, <= 2.5.3" {
       yes = [ "0.0.10" "1.0.0" "2.5.3" ];
       no  = [ "0.0.8" "2.5.4" ];
     };
-    version-req-multi5 = testMatchReq "0.3.0, 0.4.0" {
+    multi5 = testMatchReq "0.3.0, 0.4.0" {
       no  = [ "0.0.8" "0.3.0" "0.4.0" ];
     };
-    version-req-multi6 = testMatchReq "<= 0.2.0, >= 0.5.0" {
+    multi6 = testMatchReq "<= 0.2.0, >= 0.5.0" {
       no  = [ "0.0.8" "0.3.0" "0.5.1" ];
     };
-    version-req-multi7 = testMatchReq "^0.1.0, ^0.1.4, ^0.1.6" {
+    multi7 = testMatchReq "^0.1.0, ^0.1.4, ^0.1.6" {
       yes = [ "0.1.6" "0.1.9" ];
       no  = [ "0.1.0" "0.1.4" "0.2.0" ];
     };
-    version-req-multi8 = testMatchReq ">=0.5.1-alpha3, <0.6" {
+    multi8 = testMatchReq ">=0.5.1-alpha3, <0.6" {
       yes = [ "0.5.1-alpha3" "0.5.1-alpha4" "0.5.1-beta" "0.5.1" "0.5.5" ];
       no  = [ "0.5.1-alpha1" "0.5.2-alpha3" "0.5.5-pre" "0.5.0-pre" "0.6.0" "0.6.0-pre" ];
     };
-    version-req-tilde1 = testMatchReq "~1" {
+    tilde1 = testMatchReq "~1" {
       yes = [ "1.0.0" "1.0.1" "1.1.1" ];
       no  = [ "0.9.1" "2.9.0" "0.0.9" ];
     };
-    version-req-tilde2 = testMatchReq "~1.2" {
+    tilde2 = testMatchReq "~1.2" {
       yes = [ "1.2.0" "1.2.1" ];
       no  = [ "1.1.1" "1.3.0" "0.0.9" ];
     };
-    version-req-tilde3 = testMatchReq "~1.2.2" {
+    tilde3 = testMatchReq "~1.2.2" {
       yes = [ "1.2.2" "1.2.4" ];
       no  = [ "1.2.1" "1.9.0" "1.0.9" "2.0.1" "0.1.3" ];
     };
-    version-req-tilde4 = testMatchReq "~1.2.3-beta.2" {
+    tilde4 = testMatchReq "~1.2.3-beta.2" {
       yes = [ "1.2.3" "1.2.4" "1.2.3-beta.2" "1.2.3-beta.4" ];
       no  = [ "1.3.3" "1.1.4" "1.2.3-beta.1" "1.2.4-beta.2" ];
     };
-    version-req-caret1 = testMatchReq "^1" {
+    caret1 = testMatchReq "^1" {
       yes = [ "1.1.2" "1.1.0" "1.2.1" "1.0.1" ];
       no  = [ "0.9.1" "2.9.0" "0.1.4" "1.0.0-beta1" "0.1.0-alpha" "1.0.1-pre" ];
     };
-    version-req-caret2 = testMatchReq "^1.1" {
+    caret2 = testMatchReq "^1.1" {
       yes = [ "1.1.2" "1.1.0" "1.2.1" ];
       no  = [ "0.9.1" "2.9.0" "1.0.1" "0.1.4" ];
     };
-    version-req-caret3 = testMatchReq "^1.1.2" {
+    caret3 = testMatchReq "^1.1.2" {
       yes = [ "1.1.2" "1.1.4" "1.2.1" ];
       no  = [ "0.9.1" "2.9.0" "1.1.1" "0.0.1" "1.1.2-alpha1" "1.1.3-alpha1" "2.9.0-alpha1" ];
     };
-    version-req-caret4 = testMatchReq "^0.1.2" {
+    caret4 = testMatchReq "^0.1.2" {
       yes = [ "0.1.2" "0.1.4" ];
       no  = [ "0.9.1" "2.9.0" "1.1.1" "0.0.1" "0.1.2-beta" "0.1.3-alpha" "0.2.0-pre" ];
     };
-    version-req-caret5 = testMatchReq "^0.5.1-alpha3" {
+    caret5 = testMatchReq "^0.5.1-alpha3" {
       yes = [ "0.5.1-alpha3" "0.5.1-alpha4" "0.5.1-beta" "0.5.1" "0.5.5" ];
       no  = [ "0.5.1-alpha1" "0.5.2-alpha3" "0.5.5-pre" "0.5.0-pre" "0.6.0" ];
     };
-    version-req-caret6 = testMatchReq "^0.0.2" {
+    caret6 = testMatchReq "^0.0.2" {
       yes = [ "0.0.2" ];
       no  = [ "0.9.1" "2.9.0" "1.1.1" "0.0.1" "0.1.4" ];
     };
-    version-req-caret7 = testMatchReq "^0.0" {
+    caret7 = testMatchReq "^0.0" {
       yes = [ "0.0.2" "0.0.0" ];
       no  = [ "0.9.1" "2.9.0" "1.1.1" "0.1.4" ];
     };
-    version-req-caret8 = testMatchReq "^0" {
+    caret8 = testMatchReq "^0" {
       yes = [ "0.9.1" "0.0.2" "0.0.0" ];
       no  = [ "2.9.0" "1.1.1" ];
     };
-    version-req-caret9 = testMatchReq "^1.4.2-beta.5" {
+    caret9 = testMatchReq "^1.4.2-beta.5" {
       yes = [ "1.4.2" "1.4.3" "1.4.2-beta.5" "1.4.2-beta.6" "1.4.2-c" ];
       no  = [ "0.9.9" "2.0.0" "1.4.2-alpha" "1.4.2-beta.4" "1.4.3-beta.5" ];
     };
-    version-req-star1 = testMatchReq "*" {
+    star1 = testMatchReq "*" {
       yes = [ "0.9.1" "2.9.0" "0.0.9" "1.0.1" "1.1.1" ];
     };
-    version-req-star2 = testMatchReq "1.*" {
+    star2 = testMatchReq "1.*" {
       yes = [ "1.2.0" "1.2.1" "1.1.1" "1.3.0" ];
       no  = [ "0.0.9" ];
     };
-    version-req-star3 = testMatchReq "1.2.*" {
+    star3 = testMatchReq "1.2.*" {
       yes = [ "1.2.0" "1.2.2" "1.2.4" ];
       no  = [ "1.9.0" "1.0.9" "2.0.1" "0.1.3" ];
     };
-    version-req-pre = testMatchReq "=2.1.1-really.0" {
+    pre = testMatchReq "=2.1.1-really.0" {
       yes = [ "2.1.1-really.0" ];
     };
   };
