@@ -204,16 +204,16 @@ rec {
     simple4 = test ''cfg(foo = "")'' false;
     simple5 = test ''cfg(wtf = "foo")'' false;
 
-    and1  = test ''cfg(and())'' true;
-    and2  = test ''cfg(and(foo))'' true;
-    and3  = test ''cfg(and(baz))'' false;
-    and4  = test ''cfg(and(foo,bar))'' true;
-    and5  = test ''cfg(and(foo,bar,baz))'' false;
-    and6  = test ''cfg(and(foo,baz,bar))'' false;
-    and7  = test ''cfg(and(baz,foo))'' false;
-    and8  = test ''cfg(and(baz,feature="foo"))'' false;
-    and9  = test ''cfg(and(baz,feature="wtf"))'' false;
-    and10 = test ''cfg(and(foo,feature="wtf"))'' true;
+    all1  = test ''cfg(all())'' true;
+    all2  = test ''cfg(all(foo))'' true;
+    all3  = test ''cfg(all(baz))'' false;
+    all4  = test ''cfg(all(foo,bar))'' true;
+    all5  = test ''cfg(all(foo,bar,baz))'' false;
+    all6  = test ''cfg(all(foo,baz,bar))'' false;
+    all7  = test ''cfg(all(baz,foo))'' false;
+    all8  = test ''cfg(all(baz,feature="foo"))'' false;
+    all9  = test ''cfg(all(baz,feature="wtf"))'' false;
+    all10 = test ''cfg(all(foo,feature="foo"))'' true;
 
     any1  = test ''cfg(any())'' false;
     any2  = test ''cfg(any(foo))'' true;

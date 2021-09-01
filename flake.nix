@@ -96,7 +96,7 @@
         _0000-semver-compare-tests = semver-compare-tests;
         _0001-semver-req-tests = semver-req-tests;
         _0002-cfg-parser-tests = cfg-parser-tests;
-        # cfg-eval-tests # FIXME
+        _0003-cfg-eval-tests = cfg-eval-tests;
         _0004-platform-cfg-tests = platform-cfg-tests;
 
         _0100-crate-info-from-toml-tests = crate-info-from-toml-tests;
