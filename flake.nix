@@ -98,6 +98,7 @@
         _0002-cfg-parser-tests = cfg-parser-tests;
         _0003-cfg-eval-tests = cfg-eval-tests;
         _0004-platform-cfg-tests = platform-cfg-tests;
+        _0005-glob-tests = glob-tests;
 
         _0100-crate-info-from-toml-tests = crate-info-from-toml-tests;
         _0101-update-feature-tests = update-feature-tests;

@@ -6,6 +6,7 @@ in
   lib = prev.lib // {
     nocargo =
       import ./semver.nix { inherit (final) lib; } //
+      import ./glob.nix { inherit (final) lib; } //
       import ./target-cfg.nix { inherit (final) lib rust; } //
       import ./crate-info.nix { inherit (final) lib fetchurl; } //
       import ./resolve.nix { inherit (final) lib; } //
