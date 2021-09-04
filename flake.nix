@@ -61,7 +61,7 @@
                   jq . <<<"$got"
                   echo
                   echo "expect:"
-                  jq . <<<"$got"
+                  jq . <<<"$expect"
                   echo
                   echo "diff:"
                   diff -y <(jq . <<<"$got") <(jq . <<<"$expect")
