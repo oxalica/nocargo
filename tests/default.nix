@@ -14,21 +14,43 @@ let
     "ssh://git@github.com/dtolnay/semver" = git-semver;
   };
 
-  build = src: profile: pkgs.nocargo.buildRustCrateFromSrcAndLock {
-    inherit src profile gitSources;
-  };
+  mkHelloWorlds = set:
+    let
+      build = src: profile: pkgs.nocargo.buildRustCrateFromSrcAndLock {
+        inherit src profile gitSources;
+      };
 
-  f = name: type:
-    if type != "directory" then null else
-    [
-      { name = name; value = build (./. + "/${name}") "release"; }
-      { name = name + "-dev"; value = build (./. + "/${name}") "dev"; }
-    ];
+      toTest = name: drv: pkgs.runCommand "${drv.name}" {} ''
+        name="${lib.replaceStrings ["-"] ["_"] name}"
+        got="$("${drv.bin}/bin/$name")"
+        expect="Hello, world!"
+        echo "Got   : $got"
+        echo "Expect: $expect"
+        [[ "$got" == "$expect" ]]
+        touch $out
+      '';
+
+      genProfiles = name: path: [
+        { name = name; value = toTest name (build path "release"); }
+        { name = name + "-debug"; value = toTest name (build path "dev"); }
+      ];
+
+    in
+      lib.listToAttrs
+        (lib.flatten
+          (lib.mapAttrsToList genProfiles set));
+
 in
-  lib.listToAttrs
-    (lib.flatten
-      (lib.filter
-        (x: x != null)
-        (lib.mapAttrsToList
-          f
-          (builtins.readDir ./.))))
+{
+  hello-worlds = mkHelloWorlds {
+    custom-lib-name = ./custom-lib-name;
+    dep-source-kinds = ./dep-source-kinds;
+    dependent = ./dependent;
+    libz-link = ./libz-link;
+    simple-features = ./simple-features;
+    test-openssl = ./test-openssl;
+    test-rand = ./test-rand;
+    test-rustls = ./test-rustls;
+    tokio-app = ./tokio-app;
+  };
+}

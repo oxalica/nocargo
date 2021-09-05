@@ -107,18 +107,7 @@
         _0200-resolve-deps-tests = resolve-deps-tests;
         _0201-build-from-src-dry-tests = build-from-src-dry-tests;
 
-        _1000-build-tests = let
-          mkHelloWorld = name: drv: pkgs.runCommand "build-tests-${drv.name}" {} ''
-            name="${replaceStrings ["-dev" "-"] ["" "_"] name}"
-            got="$("${drv.bin}/bin/$name")"
-            expect="Hello, world!"
-            echo "Got   : $got"
-            echo "Expect: $got"
-            [[ "$got" == "$expect" ]]
-            touch $out
-          '';
-        in
-          mapAttrs mkHelloWorld (import ./tests { inherit pkgs; });
+        _1000-build-tests = import ./tests { inherit pkgs; };
       };
 
       flattenTests = prefix: v:
