@@ -12,7 +12,10 @@ rec {
   globAtomPat = ''[^[\/]|${globBracketPat}'';
   globPat = ''((${globAtomPat})+[\/])*(${globAtomPat})+'';
 
+  # Parse a glob pattern into a list of segments.
+  #
   # String -> List ({ lit: String } | { re: String } | { deep: true })
+  #
   # `lit` for simple string literal.
   # `re` for segment matching.
   # `deep` for `**`
@@ -52,8 +55,11 @@ rec {
       else
         map translateSegment segments;
 
+  # Find all paths in a tree matching a given glob pattern.
+  # A path is represented as a list of segments.
+  #
   # String -> Set -> List (List String)
-  globMatch = glob: tree:
+  globMatchTree = glob: tree:
     let
       flatMap = f: foldl' (ret: x: ret ++ f x) [];
 
@@ -89,48 +95,53 @@ rec {
     in
       go [] (parseGlob glob);
 
-  globMatchPath = glob: dir:
+  # Find all paths inside a filesystem directory matching a given glob pattern.
+  # A path is represented as a relative string with `/` as segment separator, eg. "" (root), "foo", "foo/bar"
+  #
+  # String -> Path -> List String
+  globMatchDir = glob: dir:
     let
       pathToTree = dir:
         mapAttrs
           (k: ty: if ty == "directory" then pathToTree (dir + "/${k}") else ty)
           (readDir dir);
-      ret = globMatch glob (pathToTree dir);
+      ret = globMatchTree glob (pathToTree dir);
     in
       map (concatStringsSep "/") ret;
 
   glob-tests = { assertEq, ... }: {
     "0parse" = let
-      shouldBeInvalid = glob: assertEq (builtins.tryEval (parseGlob glob)) { success = false; value = false; };
+      assertInvalid = glob: assertEq (builtins.tryEval (parseGlob glob)) { success = false; value = false; };
+      assertParsed = glob: expect: assertEq (parseGlob glob) expect;
     in {
-      invalid1 = shouldBeInvalid "";
-      invalid2 = shouldBeInvalid "/";
-      invalid3 = shouldBeInvalid "/foo";
-      invalid4 = shouldBeInvalid "foo//bar";
+      invalid1 = assertInvalid "";
+      invalid2 = assertInvalid "/";
+      invalid3 = assertInvalid "/foo";
+      invalid4 = assertInvalid "foo//bar";
 
-      lit1 = assertEq (parseGlob "foo") [ { lit = "foo"; } ];
-      lit2 = assertEq (parseGlob "!.(^$){}") [ { lit = "!.(^$){}"; } ];
-      lit3 = assertEq (parseGlob ".") [ { lit = "."; } ];
-      lit4 = assertEq (parseGlob "..") [ { lit = ".."; } ];
+      lit1 = assertParsed "foo" [ { lit = "foo"; } ];
+      lit2 = assertParsed "!.(^$){}" [ { lit = "!.(^$){}"; } ];
+      lit3 = assertParsed "." [ { lit = "."; } ];
+      lit4 = assertParsed ".." [ { lit = ".."; } ];
 
-      re1 = assertEq (parseGlob "*") [ { re = ''.*''; } ];
-      re2 = assertEq (parseGlob ".*") [ { re = ''\..*''; } ];
-      re3 = assertEq (parseGlob "*.*") [ { re = ''.*\..*''; } ];
-      re4 = assertEq (parseGlob "[[][]][![][!]][a-z0-]") [ { re = ''[[][]][^[][^]][a-z0-]''; } ];
-      re5 = assertEq (parseGlob "?.*[[][?.*]?.*") [ { re = ''.\..*[[][?.*].\..*''; } ];
-      re6 = assertEq (parseGlob ".[.]") [ { re = ''\.[.]''; } ];
+      re1 = assertParsed "*" [ { re = ''.*''; } ];
+      re2 = assertParsed ".*" [ { re = ''\..*''; } ];
+      re3 = assertParsed "*.*" [ { re = ''.*\..*''; } ];
+      re4 = assertParsed "[[][]][![][!]][a-z0-]" [ { re = ''[[][]][^[][^]][a-z0-]''; } ];
+      re5 = assertParsed "?.*[[][?.*]?.*" [ { re = ''.\..*[[][?.*].\..*''; } ];
+      re6 = assertParsed ".[.]" [ { re = ''\.[.]''; } ];
 
-      deep1 = assertEq (parseGlob "**") [ { deep = true; } ];
+      deep1 = assertParsed "**" [ { deep = true; } ];
 
-      compound1 = assertEq
-        (parseGlob "./foo/**/*.nix")
+      compound1 = assertParsed
+        "./foo/**/*.nix"
         [ { lit = "."; } { lit = "foo"; } { deep = true; } { re = ''.*\.nix''; } ];
-      compound2 = assertEq
-        (parseGlob ".*/../log/[!abc]*-[0-9T:-]+0000.log")
+      compound2 = assertParsed
+        ".*/../log/[!abc]*-[0-9T:-]+0000.log"
         [ { re = ''\..*''; } { lit = ".."; } { lit = "log"; } { re = ''[^abc].*-[0-9T:-]\+0000\.log''; } ];
     };
 
-    "1match" = let
+    "1match-tree" = let
       tree = {
         a = null;
         b = null;
@@ -158,7 +169,7 @@ rec {
 
       assertMatch = glob: expect:
         let
-          ret = globMatch glob tree;
+          ret = globMatchTree glob tree;
           ret' = map (concatStringsSep "/") ret;
         in
           assertEq ret' expect;
@@ -182,9 +193,9 @@ rec {
       deep4 = assertMatch "[wz]/**" [ "z" "z/a" "z/b" "z/b/c" "z/b/d" "z/b/d/e" ];
     };
 
-    "2path" = let
+    "2match-dir" = let
       assertMatch = glob: expect:
-        assertEq (globMatchPath glob ./.)expect;
+        assertEq (globMatchDir glob ./.) expect;
     in {
       compound1 = assertMatch "./gl[aeiou]b.*" [ "glob.nix" ];
       compound2 = assertMatch "./tests/dependent/../**/tokio-[!wtf][opq]?" [ "tests/tokio-app" ];
