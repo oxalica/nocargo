@@ -2,15 +2,16 @@
   "nodes": {
     "nixpkgs": {
       "locked": {
-        "lastModified": 1629994552,
-        "narHash": "sha256-n+BfWnLE8jRyPryPe2Pq3ePJy6ccUfh/ZVBGAZdXQH0=",
+        "lastModified": 1652840887,
+        "narHash": "sha256-gEK4NNa4GwIgTZE63kt/4WTFAWRTJVSa30+h4ZjFh9U=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "0a5387d3844d78603969f4486fc0a9e34e410689",
+        "rev": "52dc75a4fee3fdbcb792cb6fba009876b912bfe0",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -18,11 +19,11 @@
     "registry-crates-io": {
       "flake": false,
       "locked": {
-        "lastModified": 1629994569,
-        "narHash": "sha256-zha2WaNHCxM2GqQBGRU1SnEXOK0goGD9TpAF36kzWX8=",
+        "lastModified": 1653122994,
+        "narHash": "sha256-8GJHMJnB7N6lp2rIekYecLKjQ4qYvH10G9iBX/ZhRh4=",
         "owner": "rust-lang",
         "repo": "crates.io-index",
-        "rev": "c4b4ca94bf4d0e3149edcd6291d7d8fb4badd350",
+        "rev": "ed1763423b4010ebb77a3dcd3e33d387370c70f0",
         "type": "github"
       },
       "original": {
