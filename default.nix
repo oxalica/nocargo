@@ -1,6 +1,6 @@
 final: prev:
 let
-  inherit (final.lib.nocargo) mkIndex buildRustCrateFromSrcAndLock;
+  inherit (final.lib.nocargo) mkIndex buildRustCrateFromSrcAndLock buildRustWorkspaceFromSrcAndLock;
 in
 {
   lib = prev.lib // {
@@ -24,6 +24,11 @@ in
     buildRustCrate = final.callPackage ./build-rust-crate { inherit (final.nocargo) toml2json; };
 
     buildRustCrateFromSrcAndLock = buildRustCrateFromSrcAndLock {
+      inherit (final.nocargo) defaultRegistries buildRustCrate;
+      inherit (final) stdenv buildPackages;
+    };
+
+    buildRustWorkspaceFromSrcAndLock = buildRustWorkspaceFromSrcAndLock {
       inherit (final.nocargo) defaultRegistries buildRustCrate;
       inherit (final) stdenv buildPackages;
     };

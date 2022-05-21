@@ -110,6 +110,7 @@
             _0003-cfg-eval = cfg-eval-tests;
             _0004-platform-cfg = platform-cfg-tests;
             _0005-glob = glob-tests;
+            _0006-sanitize-relative-path = sanitize-relative-path-tests;
 
             _0100-crate-info-from-toml = crate-info-from-toml-tests;
             _0101-update-feature = update-feature-tests;

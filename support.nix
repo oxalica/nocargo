@@ -1,10 +1,14 @@
 { lib }:
 let
-  inherit (builtins) fromTOML fromJSON toJSON match;
-  inherit (lib) readFile mapAttrs filter replaceStrings elem elemAt;
+  inherit (builtins) fromTOML fromJSON toJSON match tryEval split;
+  inherit (lib)
+    readFile mapAttrs warnIf
+    isString replaceStrings hasPrefix
+    filter flatten elem elemAt listToAttrs subtractLists concatStringsSep;
   inherit (lib.nocargo)
     mkCrateInfoFromCargoToml getCrateInfoFromIndex resolveDepsFromLock resolveFeatures
-    platformToCfgs evalTargetCfgStr;
+    platformToCfgs evalTargetCfgStr
+    globMatchDir;
 in
 rec {
   buildRustCrateFromSrcAndLock =
@@ -18,6 +22,8 @@ rec {
     , gitSources ? {}
     , rustc ? buildPackages.rustc
     , buildCrateOverrides ? {}
+    , dontWarnForWorkspace ? false
+    , workspaceCrateInfos ? {}
     }:
     assert elem profile [ "dev" "release" ];
     let
@@ -38,11 +44,13 @@ rec {
         kind = elemAt m 0;
         url = elemAt m 1;
       in
+        # Local crates have no `source`.
         if source == null then
           if name == rootInfo.name && version == rootInfo.version then
             rootInfo
           else
-            throw "Local path dependency is not supported yet"
+            workspaceCrateInfos.${toCrateId args}
+              or (throw "Local crate is outside the workspace: ${toCrateId args}")
         else if m == null then
           throw "Invalid source: ${source}"
         else if kind == "registry" then
@@ -133,7 +141,80 @@ rec {
       ) resolvedNormalFeatures;
 
     in
-      pkgs.${rootId};
+      warnIf (!dontWarnForWorkspace && cargoToml ? workspace) ''
+        `buildRustCrateFromSrcAndLock` doesn't support workspace. Maybe use `buildRustWorkspaceFromSrcAndLock` instead?
+      '' pkgs.${rootId};
+
+  sanitizeRelativePath = path:
+    if hasPrefix "/" path then
+      throw "Absolute path is not allowed: ${path}"
+    else
+      concatStringsSep "/"
+        (filter
+          (s:
+            isString s && s != "" && s != "." &&
+            (if match ''.*[[?*].*|\.\.'' s != null then throw ''
+              Globing and `..` are not allowed: ${path}
+            '' else true))
+          (split ''[\/]'' path));
+
+  # Return a set of derivations keyed by sub-package names.
+  buildRustWorkspaceFromSrcAndLock =
+    args0:
+    { src
+    , cargoTomlFile ? src + "/Cargo.toml"
+    , cargoLockFile ? src + "/Cargo.lock"
+    , ...
+    }@args:
+    let
+      cargoToml = fromTOML (readFile cargoTomlFile);
+
+      selected = flatten (map (glob: globMatchDir glob src) cargoToml.workspace.members);
+      excluded = map sanitizeRelativePath (cargoToml.workspace.exclude or []);
+      members = subtractLists excluded selected;
+
+      workspaceCrateInfos =
+        listToAttrs
+          (map (relPath:
+            let
+              memberRoot = src + ("/" + relPath);
+              memberManifest = fromTOML (readFile (memberRoot + "/Cargo.toml"));
+            in {
+              # TODO: Dedup?
+              name = "${memberManifest.package.name} ${memberManifest.package.version} ()";
+              value = mkCrateInfoFromCargoToml memberManifest memberRoot;
+            }
+          )members);
+
+      pathToEntry = path:
+        let
+          src' = src + ("/" + path);
+          cargoTomlFile' = src' + "/Cargo.toml";
+          name = (fromTOML (readFile cargoTomlFile')).package.name;
+          pkg = buildRustCrateFromSrcAndLock args0 (args // {
+            src = src';
+            cargoTomlFile = cargoTomlFile';
+            # Use the common `Cargo.lock`.
+            inherit cargoLockFile;
+            # A Cargo.toml may be both workspace and package. Suppress warnings if any.
+            dontWarnForWorkspace = true;
+            inherit workspaceCrateInfos;
+          });
+        in
+      {
+        inherit name;
+        value = pkg;
+      };
+
+      pkgs = listToAttrs (map pathToEntry members);
+
+    in
+      if !(cargoToml ? workspace) then
+        throw "`buildRustWorkspaceFromSrcAndLock` only support workspace, use `buildRustCrateFromSrcAndLock` instead"
+      else if (cargoToml.workspace.members or []) == [] then
+        throw "Workspace auto-detection is not supported yet. Please manually specify `workspace.members`"
+      else
+        pkgs;
 
   build-from-src-dry-tests = { assertEq, assertEqFile, pkgs, ... }: let
     inherit (builtins) seq toJSON head listToAttrs;
@@ -214,5 +295,24 @@ rec {
       libz' = (head ret.linksDependencies).drv;
     in
       assertEq [ libz.links libz'.links ] [ "z" "z" ];
+  };
+
+  sanitize-relative-path-tests = { assertEq, ... }: let
+    assertOk = raw: expect: assertEq (tryEval (sanitizeRelativePath raw)) { success = true; value = expect; };
+    assertInvalid = raw: assertEq (tryEval (sanitizeRelativePath raw)) { success = false; value = false; };
+  in
+  {
+    empty = assertOk "" "";
+    simple1 = assertOk "foo" "foo";
+    simple2 = assertOk "foo/bar" "foo/bar";
+    dot1 = assertOk "." "";
+    dot2 = assertOk "./././" "";
+    dot3 = assertOk "./foo/./bar/" "foo/bar";
+
+    dotdot1 = assertInvalid "..";
+    dotdot2 = assertInvalid "./foo/..";
+    dotdot3 = assertInvalid "../bar";
+    root1 = assertInvalid "/";
+    root2 = assertInvalid "/foo";
   };
 }

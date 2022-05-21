@@ -152,6 +152,8 @@ rec {
             lib.warnIf (v ? default_features) "Ignoreing `default_features`. Do you means `default-features`?"
             (v.default-features or true);
 
+          path = v.path or null;
+
           # This is used for dependency resoving inside Cargo.lock.
           source =
             if v ? registry then
@@ -213,6 +215,7 @@ rec {
             req = "0.1";
             target = null;
             source = null;
+            path = null;
           }
           {
             name = "tokio";
@@ -224,6 +227,7 @@ rec {
             req = "1.6.1";
             target = null;
             source = null;
+            path = null;
           }
         ];
       };

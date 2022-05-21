@@ -14,43 +14,55 @@ let
     "ssh://git@github.com/dtolnay/semver" = git-semver;
   };
 
+  shouldBeHelloWorld = drv: pkgs.runCommand "${drv.name}" {} ''
+    binaries=(${drv.bin}/bin/*)
+    [[ ''${#binaries[@]} == 1 ]]
+    got="$(''${binaries[0]})"
+    expect="Hello, world!"
+    echo "Got   : $got"
+    echo "Expect: $expect"
+    [[ "$got" == "$expect" ]]
+    touch $out
+  '';
+
   mkHelloWorlds = set:
     let
-      build = src: profile: pkgs.nocargo.buildRustCrateFromSrcAndLock {
-        inherit src profile gitSources;
-      };
-
-      toTest = name: drv: pkgs.runCommand "${drv.name}" {} ''
-        name="${lib.replaceStrings ["-"] ["_"] name}"
-        got="$("${drv.bin}/bin/$name")"
-        expect="Hello, world!"
-        echo "Got   : $got"
-        echo "Expect: $expect"
-        [[ "$got" == "$expect" ]]
-        touch $out
-      '';
-
-      genProfiles = name: path: [
-        { name = name; value = toTest name (build path "release"); }
-        { name = name + "-debug"; value = toTest name (build path "dev"); }
+      genProfiles = name: f: [
+        { name = name; value = shouldBeHelloWorld (f "release"); }
+        { name = name + "-debug"; value = shouldBeHelloWorld (f "dev"); }
       ];
-
     in
       lib.listToAttrs
         (lib.flatten
           (lib.mapAttrsToList genProfiles set));
 
+  mkCrate = src: profile: pkgs.nocargo.buildRustCrateFromSrcAndLock {
+    inherit src profile gitSources;
+  };
+
+  mkWorkspace = src: expectMembers: entry: profile:
+    let
+      set = pkgs.nocargo.buildRustWorkspaceFromSrcAndLock {
+        inherit src profile;
+      };
+    in
+      assert builtins.attrNames set == expectMembers;
+      set.${entry};
+
 in
 {
   hello-worlds = mkHelloWorlds {
-    custom-lib-name = ./custom-lib-name;
-    dep-source-kinds = ./dep-source-kinds;
-    dependent = ./dependent;
-    libz-link = ./libz-link;
-    simple-features = ./simple-features;
-    test-openssl = ./test-openssl;
-    test-rand = ./test-rand;
-    test-rustls = ./test-rustls;
-    tokio-app = ./tokio-app;
+    custom-lib-name = mkCrate ./custom-lib-name;
+    dep-source-kinds = mkCrate ./dep-source-kinds;
+    dependent = mkCrate ./dependent;
+    libz-link = mkCrate ./libz-link;
+    simple-features = mkCrate ./simple-features;
+    test-openssl = mkCrate ./test-openssl;
+    test-rand = mkCrate ./test-rand;
+    test-rustls = mkCrate ./test-rustls;
+    tokio-app = mkCrate ./tokio-app;
+
+    workspace-virtual = mkWorkspace ./workspace-virtual [ "bar" "foo" ] "foo";
+    workspace-inline = mkWorkspace ./workspace-inline [ "bar" "foo" ] "foo";
   };
 }
