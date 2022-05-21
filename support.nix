@@ -135,38 +135,84 @@ rec {
     in
       pkgs.${rootId};
 
-  build-from-src-dry-tests = { assertEqFile, pkgs, ... }: let
+  build-from-src-dry-tests = { assertEq, assertEqFile, pkgs, ... }: let
+    inherit (builtins) seq toJSON head listToAttrs;
+
     buildRustCrateFromSrcAndLock' = buildRustCrateFromSrcAndLock {
       inherit (pkgs) stdenv buildPackages;
       inherit (pkgs.nocargo) defaultRegistries;
-      buildRustCrate = args: removeAttrs args [ "src" "rustc" ];
+      buildRustCrate = args: args;
     };
-    test = src: args: test' src (src + "/dry-build.json") args;
-    test' = src: expectFile: args: let
-      got = buildRustCrateFromSrcAndLock' ({ inherit src; } // args);
-    in
-      assertEqFile got expectFile;
+
+    build = src: args:
+      let
+        ret = buildRustCrateFromSrcAndLock' ({ inherit src; } // args);
+        # deepSeq but don't decent into derivations.
+      in seq (toJSON ret) ret;
+
   in
   {
-    simple-features = test ./tests/simple-features {};
-    dependent = test ./tests/dependent {};
-    tokio-app = test ./tests/tokio-app {};
-    dep-source-kinds = test ./tests/dep-source-kinds {
-      gitSources = {
-        "https://github.com/dtolnay/semver?tag=1.0.4" = ./tests/dep-source-kinds/fake-semver;
-        "git://github.com/dtolnay/semver?branch=master" = ./tests/dep-source-kinds/fake-semver;
-        "ssh://git@github.com/dtolnay/semver?rev=ea9ea80c023ba3913b9ab0af1d983f137b4110a5" = ./tests/dep-source-kinds/fake-semver;
-        "ssh://git@github.com/dtolnay/semver" = ./tests/dep-source-kinds/fake-semver;
-      };
-    };
-    openssl = test ./tests/test-openssl {};
-    libz-link = test ./tests/libz-link {};
+    simple-features = let ret = build ./tests/simple-features {}; in
+      assertEq ret.features [ "a" "default" ];
 
-    dependent-overrided = test' ./tests/dependent ./tests/dependent/dry-build-overrided.json {
-      buildCrateOverrides."" = old: { a = "b"; };
-      buildCrateOverrides."serde 1.0.126 (registry+https://github.com/rust-lang/crates.io-index)" = old: {
-        buildInputs = [ "some-inputs" ];
+    dependent = let
+      ret = build ./tests/dependent {};
+      semver = (head ret.dependencies).drv;
+      serde = (head semver.dependencies).drv;
+    in assertEq
+      { inherit (semver) pname features; serde = serde.pname; }
+      { pname = "semver"; features = [ "default" "serde" "std" ]; serde = "serde"; };
+
+    dependent-overrided = let
+      ret = build ./tests/dependent {
+        buildCrateOverrides."" = old: { a = "b"; };
+        buildCrateOverrides."serde 1.0.126 (registry+https://github.com/rust-lang/crates.io-index)" = old: {
+          buildInputs = [ "some-inputs" ];
+        };
       };
-    };
+      semver = (head ret.dependencies).drv;
+      serde = (head semver.dependencies).drv;
+    in
+      assertEq serde.buildInputs [ "some-inputs" ];
+
+    dep-source-kinds = let
+      mkSrc = from: { __toString = _: ./tests/dep-source-kinds/fake-semver; inherit from; };
+
+      ret = build ./tests/dep-source-kinds {
+        gitSources = {
+          "https://github.com/dtolnay/semver?tag=1.0.4" = mkSrc "tag";
+          "git://github.com/dtolnay/semver?branch=master" = mkSrc "branch";
+          "ssh://git@github.com/dtolnay/semver?rev=ea9ea80c023ba3913b9ab0af1d983f137b4110a5" = mkSrc "rev";
+          "ssh://git@github.com/dtolnay/semver" = mkSrc "nothing";
+        };
+      };
+      ret' = listToAttrs
+        (map (dep: {
+          name = if dep.rename != null then dep.rename else dep.drv.pname;
+          value = dep.drv.src.from or dep.drv.src.name;
+        }) ret.dependencies);
+    in
+      assertEq ret' {
+        bitflags = "crate-bitflags-1.3.2.tar.gz";
+        cfg_if2 = "crate-cfg-if-1.0.0.tar.gz";
+        semver1 = "tag";
+        semver2 = "branch";
+        semver3 = "rev";
+        semver4 = "nothing";
+      };
+
+    openssl = let
+      ret = build ./tests/test-openssl {};
+      openssl = (head ret.dependencies).drv;
+      openssl-sys = (head openssl.linksDependencies).drv;
+    in
+      assertEq (head openssl-sys.propagatedBuildInputs).pname "openssl";
+
+    libz-link = let
+      ret = build ./tests/libz-link {};
+      libz = (head ret.dependencies).drv;
+      libz' = (head ret.linksDependencies).drv;
+    in
+      assertEq [ libz.links libz'.links ] [ "z" "z" ];
   };
 }
