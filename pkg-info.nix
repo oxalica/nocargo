@@ -6,6 +6,12 @@ let
     filter listToAttrs mapAttrs mapAttrsToList optionalAttrs;
 in
 rec {
+  toPkgId = { name, version, source ? null, ... }:
+    if source != null then
+      "${name} ${version} (${source})"
+    else
+      "${name} ${version} (local)";
+
   mkIndex = path: overrides: let
     # TODO: We currently only support legacy format used by crates.io-index.
     # https://github.com/rust-lang/cargo/blob/2f3df16921deb34a92700f4d5a7ecfb424739558/src/cargo/sources/registry/mod.rs#L230-L244
@@ -17,13 +23,13 @@ rec {
       mapAttrs (k: v:
         if v == "directory"
           then go "${path}/${k}"
-          else mkCrateInfoSet mkDownloadUrl k (readFile "${path}/${k}") (overrides.${k} or null)
+          else mkPkgInfoSet mkDownloadUrl k (readFile "${path}/${k}") (overrides.${k} or null)
       ) (removeAttrs (readDir path) [ "config.json" ]);
   in
     go path // { __registry_index = true; };
 
-  # Get crate info of the given package, with overrides applied if exists.
-  getCrateInfoFromIndex = index: { name, version, checksum ? null, ... }: let
+  # Get pkg info of the given package, with overrides applied if exists.
+  getPkgInfoFromIndex = index: { name, version, checksum ? null, ... }: let
     len = stringLength name;
     crate =
       if len == 1 then
@@ -39,26 +45,26 @@ rec {
     if !(index ? __registry_index) then
       throw "Invalid registry. Do you forget `mkIndex` on registry paths?"
     else if crate == null then
-      throw "Crate ${name} is not found in index"
+      throw "Package ${name} is not found in index"
     else if info == null then
-      throw "Crate ${name} doesn't have version ${version} in index. Available versions: ${toString (attrNames crate)}"
+      throw "Package ${name} doesn't have version ${version} in index. Available versions: ${toString (attrNames crate)}"
     else if info.sha256 != null && checksum != null && info.sha256 != checksum then
-      throw "Crate ${name} ${version} hash mismatched, expect ${info.sha256}, got ${checksum}"
+      throw "Package ${name} ${version} hash mismatched, expect ${info.sha256}, got ${checksum}"
     else
       info;
 
-  # Make a set of crate infos keyed by version.
-  mkCrateInfoSet = mkDownloadUrl: name: content: override: let
+  # Make a set of pkg infos keyed by version.
+  mkPkgInfoSet = mkDownloadUrl: name: content: override: let
     lines = filter (line: line != "") (splitString "\n" content);
     parseLine = line: let parsed = fromJSON line; in {
       name = parsed.vers;
-      value = mkCrateInfo mkDownloadUrl parsed
+      value = mkPkgInfo mkDownloadUrl parsed
         // optionalAttrs (override != null) { __override = override; };
     };
   in
     listToAttrs (map parseLine lines);
 
-  # Crate info:
+  # Package info:
   # {
   #   name = "libz-sys";      # The name in registry.
   #   version = "0.1.0";      # Semver.
@@ -84,7 +90,7 @@ rec {
   #     }
   #   ];
   # }
-  mkCrateInfo =
+  mkPkgInfo =
     mkDownloadUrl:
     # https://github.com/rust-lang/cargo/blob/2f3df16921deb34a92700f4d5a7ecfb424739558/src/cargo/sources/registry/mod.rs#L259
     { name, vers, deps, features, cksum, yanked ? false, links ? null, v ? 1, ... }:
@@ -137,7 +143,7 @@ rec {
     };
 
   # Build a simplified crate into from a parsed Cargo.toml.
-  mkCrateInfoFromCargoToml = { package, features ? {}, target ? {}, ... }@args: src: let
+  mkPkgInfoFromCargoToml = { package, features ? {}, target ? {}, ... }@args: src: let
     transDeps = target: kind:
       mapAttrsToList (name: v:
         {
@@ -147,12 +153,10 @@ rec {
           req = if isString v then v else v.version or null;
           features = v.features or [];
           optional = v.optional or false;
-          # It's `default-features` in Cargo.toml, but `default_features` in index and in crate info.
+          # It's `default-features` in Cargo.toml, but `default_features` in index and in pkg info.
           default_features =
-            lib.warnIf (v ? default_features) "Ignoreing `default_features`. Do you means `default-features`?"
+            lib.warnIf (v ? default_features) "Ignoring `default_features`. Do you mean `default-features`?"
             (v.default-features or true);
-
-          path = v.path or null;
 
           # This is used for dependency resoving inside Cargo.lock.
           source =
@@ -195,7 +199,7 @@ rec {
   crate-info-from-toml-tests = { assertEq, ... }: {
     simple = let
       cargoToml = fromTOML (readFile ./tests/tokio-app/Cargo.toml);
-      info = mkCrateInfoFromCargoToml cargoToml "<src>";
+      info = mkPkgInfoFromCargoToml cargoToml "<src>";
 
       expected = {
         name = "tokio-app";
@@ -215,7 +219,6 @@ rec {
             req = "0.1";
             target = null;
             source = null;
-            path = null;
           }
           {
             name = "tokio";
@@ -227,7 +230,6 @@ rec {
             req = "1.6.1";
             target = null;
             source = null;
-            path = null;
           }
         ];
       };

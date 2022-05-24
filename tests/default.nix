@@ -36,7 +36,7 @@ let
         (lib.flatten
           (lib.mapAttrsToList genProfiles set));
 
-  mkCrate = src: profile: pkgs.nocargo.buildRustCrateFromSrcAndLock {
+  mkPackage = src: profile: pkgs.nocargo.buildRustPackageFromSrcAndLock {
     inherit src profile gitSources;
   };
 
@@ -52,15 +52,15 @@ let
 in
 {
   hello-worlds = mkHelloWorlds {
-    custom-lib-name = mkCrate ./custom-lib-name;
-    dep-source-kinds = mkCrate ./dep-source-kinds;
-    dependent = mkCrate ./dependent;
-    libz-link = mkCrate ./libz-link;
-    simple-features = mkCrate ./simple-features;
-    test-openssl = mkCrate ./test-openssl;
-    test-rand = mkCrate ./test-rand;
-    test-rustls = mkCrate ./test-rustls;
-    tokio-app = mkCrate ./tokio-app;
+    custom-lib-name = mkPackage ./custom-lib-name;
+    dep-source-kinds = mkPackage ./dep-source-kinds;
+    dependent = mkPackage ./dependent;
+    libz-link = mkPackage ./libz-link;
+    simple-features = mkPackage ./simple-features;
+    test-openssl = mkPackage ./test-openssl;
+    test-rand = mkPackage ./test-rand;
+    test-rustls = mkPackage ./test-rustls;
+    tokio-app = mkPackage ./tokio-app;
 
     workspace-virtual = mkWorkspace ./workspace-virtual [ "bar" "foo" ] "foo";
     workspace-inline = mkWorkspace ./workspace-inline [ "bar" "foo" ] "foo";

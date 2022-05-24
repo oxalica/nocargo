@@ -6,12 +6,12 @@ let
     isString replaceStrings hasPrefix
     filter flatten elem elemAt listToAttrs subtractLists concatStringsSep;
   inherit (lib.nocargo)
-    mkCrateInfoFromCargoToml getCrateInfoFromIndex resolveDepsFromLock resolveFeatures
+    mkPkgInfoFromCargoToml getPkgInfoFromIndex resolveDepsFromLock resolveFeatures toPkgId
     platformToCfgs evalTargetCfgStr
     globMatchDir;
 in
 rec {
-  buildRustCrateFromSrcAndLock =
+  buildRustPackageFromSrcAndLock =
     { defaultRegistries, buildRustCrate, stdenv, buildPackages }:
     { src
     , cargoTomlFile ? src + "/Cargo.toml"
@@ -23,23 +23,21 @@ rec {
     , rustc ? buildPackages.rustc
     , buildCrateOverrides ? {}
     , dontWarnForWorkspace ? false
-    , workspaceCrateInfos ? {}
+    , workspacePkgInfos ? {}
     }:
     assert elem profile [ "dev" "release" ];
     let
       cargoToml = fromTOML (readFile cargoTomlFile);
       cargoLock = fromTOML (readFile cargoLockFile);
 
-      toCrateId = info: "${info.name} ${info.version} (${info.source or ""})";
-
-      rootInfo = mkCrateInfoFromCargoToml cargoToml src // {
-        isRootCrate = true;
+      rootInfo = mkPkgInfoFromCargoToml cargoToml src // {
+        isRootPkg = true;
       };
-      rootId = toCrateId rootInfo;
+      rootId = toPkgId rootInfo;
 
       registries = defaultRegistries // extraRegistries;
 
-      getCrateInfo = { source ? null, name, version, ... }@args: let
+      getPkgInfo = { source ? null, name, version, ... }@args: let
         m = match "(registry|git)\\+([^#]*).*" source;
         kind = elemAt m 0;
         url = elemAt m 1;
@@ -49,12 +47,12 @@ rec {
           if name == rootInfo.name && version == rootInfo.version then
             rootInfo
           else
-            workspaceCrateInfos.${toCrateId args}
-              or (throw "Local crate is outside the workspace: ${toCrateId args}")
+            workspacePkgInfos.${toPkgId args}
+              or (throw "Local crate is outside the workspace: ${toPkgId args}")
         else if m == null then
           throw "Invalid source: ${source}"
         else if kind == "registry" then
-          getCrateInfoFromIndex
+          getPkgInfoFromIndex
             (registries.${url} or
               (throw "Registry `${url}` not found. Please specify it in `extraRegistries`."))
             args
@@ -65,11 +63,11 @@ rec {
               (throw "Git source `${url}` not found. Please specify it in `gitSources`.");
             gitCargoToml = fromTOML (readFile (gitSrc + "/Cargo.toml"));
           in
-            mkCrateInfoFromCargoToml gitCargoToml gitSrc
+            mkPkgInfoFromCargoToml gitCargoToml gitSrc
         else
           throw "Invalid source schema: ${source}";
 
-      pkgSetRaw = resolveDepsFromLock getCrateInfo cargoLock;
+      pkgSetRaw = resolveDepsFromLock getPkgInfo cargoLock;
       pkgSet = mapAttrs (id: info: info // {
         dependencies = map (dep: dep // {
           targetEnabled = dep.target != null -> evalTargetCfgStr hostCfgs dep.target;
@@ -105,7 +103,7 @@ rec {
       buildRustCrate' = info: args:
         let
           args' = args // (info.__override or lib.id) args;
-          args'' = args' // (buildCrateOverrides.${toCrateId info} or lib.id) args';
+          args'' = args' // (buildCrateOverrides.${toPkgId info} or lib.id) args';
         in
           buildRustCrate args'';
 
@@ -115,7 +113,7 @@ rec {
             inherit (info) version src;
             inherit features profile rustc;
             pname = info.name;
-            capLints = if info ? isRootCrate then null else "allow";
+            capLints = if info ? isRootPkg then null else "allow";
             buildDependencies = selectDeps pkgsBuild info.dependencies features "build" false;
             # Build dependency's normal dependency is still build dependency.
             dependencies = selectDeps pkgsBuild info.dependencies features "normal" false;
@@ -131,7 +129,7 @@ rec {
             inherit (info) version src links;
             inherit features profile rustc;
             pname = info.name;
-            capLints = if info ? isRootCrate then null else "allow";
+            capLints = if info ? isRootPkg then null else "allow";
             buildDependencies = selectDeps pkgsBuild info.dependencies features "build" false;
             dependencies = selectDeps pkgs info.dependencies features "normal" false;
             linksDependencies = selectDeps pkgs info.dependencies features "normal" true;
@@ -142,7 +140,7 @@ rec {
 
     in
       warnIf (!dontWarnForWorkspace && cargoToml ? workspace) ''
-        `buildRustCrateFromSrcAndLock` doesn't support workspace. Maybe use `buildRustWorkspaceFromSrcAndLock` instead?
+        `buildRustPackageFromSrcAndLock` doesn't support workspace. Maybe use `buildRustWorkspaceFromSrcAndLock` instead?
       '' pkgs.${rootId};
 
   sanitizeRelativePath = path:
@@ -173,16 +171,15 @@ rec {
       excluded = map sanitizeRelativePath (cargoToml.workspace.exclude or []);
       members = subtractLists excluded selected;
 
-      workspaceCrateInfos =
+      workspacePkgInfos =
         listToAttrs
           (map (relPath:
             let
               memberRoot = src + ("/" + relPath);
               memberManifest = fromTOML (readFile (memberRoot + "/Cargo.toml"));
             in {
-              # TODO: Dedup?
-              name = "${memberManifest.package.name} ${memberManifest.package.version} ()";
-              value = mkCrateInfoFromCargoToml memberManifest memberRoot;
+              name = toPkgId memberManifest.package;
+              value = mkPkgInfoFromCargoToml memberManifest memberRoot;
             }
           )members);
 
@@ -191,14 +188,14 @@ rec {
           src' = src + ("/" + path);
           cargoTomlFile' = src' + "/Cargo.toml";
           name = (fromTOML (readFile cargoTomlFile')).package.name;
-          pkg = buildRustCrateFromSrcAndLock args0 (args // {
+          pkg = buildRustPackageFromSrcAndLock args0 (args // {
             src = src';
             cargoTomlFile = cargoTomlFile';
             # Use the common `Cargo.lock`.
             inherit cargoLockFile;
             # A Cargo.toml may be both workspace and package. Suppress warnings if any.
             dontWarnForWorkspace = true;
-            inherit workspaceCrateInfos;
+            inherit workspacePkgInfos;
           });
         in
       {
@@ -210,7 +207,7 @@ rec {
 
     in
       if !(cargoToml ? workspace) then
-        throw "`buildRustWorkspaceFromSrcAndLock` only support workspace, use `buildRustCrateFromSrcAndLock` instead"
+        throw "`buildRustWorkspaceFromSrcAndLock` only support workspace, use `buildRustPackageFromSrcAndLock` instead"
       else if (cargoToml.workspace.members or []) == [] then
         throw "Workspace auto-detection is not supported yet. Please manually specify `workspace.members`"
       else
@@ -219,7 +216,7 @@ rec {
   build-from-src-dry-tests = { assertEq, assertEqFile, pkgs, ... }: let
     inherit (builtins) seq toJSON head listToAttrs;
 
-    buildRustCrateFromSrcAndLock' = buildRustCrateFromSrcAndLock {
+    buildRustPackageFromSrcAndLock' = buildRustPackageFromSrcAndLock {
       inherit (pkgs) stdenv buildPackages;
       inherit (pkgs.nocargo) defaultRegistries;
       buildRustCrate = args: args;
@@ -227,7 +224,7 @@ rec {
 
     build = src: args:
       let
-        ret = buildRustCrateFromSrcAndLock' ({ inherit src; } // args);
+        ret = buildRustPackageFromSrcAndLock' ({ inherit src; } // args);
         # deepSeq but don't decent into derivations.
       in seq (toJSON ret) ret;
 

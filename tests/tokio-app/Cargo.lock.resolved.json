@@ -332,7 +332,7 @@
     "version": "1.6.1",
     "yanked": false
   },
-  "tokio-app 0.1.0 ()": {
+  "tokio-app 0.1.0 (local)": {
     "dependencies": [
       {
         "default_features": true,
@@ -341,7 +341,6 @@
         "name": "liboldc",
         "optional": false,
         "package": "libc",
-        "path": null,
         "rename": "liboldc",
         "req": "0.1",
         "resolved": "libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -359,7 +358,6 @@
         "name": "tokio",
         "optional": false,
         "package": "tokio",
-        "path": null,
         "req": "1.6.1",
         "resolved": "tokio 1.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
         "source": null,

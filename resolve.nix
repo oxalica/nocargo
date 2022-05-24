@@ -4,35 +4,33 @@ let
   inherit (lib)
     foldl' foldr concatStringsSep listToAttrs filter elemAt length optional sort
     mapAttrs attrNames filterAttrs composeManyExtensions;
-  inherit (lib.nocargo) parseSemverReq mkCrateInfoFromCargoToml getCrateInfoFromIndex;
+  inherit (lib.nocargo) parseSemverReq mkPkgInfoFromCargoToml getPkgInfoFromIndex toPkgId;
 in rec {
 
-  # Resolve the dependencies graph based on lock file.
+  # Resolve the dependencies graph based on the lock file.
   # Output:
   # {
   #   "libz-sys 0.1.0 (https://...)" = {
-  #     # name, sha256, ... All fields from crate info.
+  #     # name, sha256, ... All fields from pkg info.
   #     dependencies = [
   #       {
-  #         # name, kind, ... All fields from dependency in crate info.
+  #         # name, kind, ... All fields from dependency in the pkg info.
   #         resolved = "libc 0.1.0 (https://...)";
   #       };
   #     };
   #   };
   # }
-  resolveDepsFromLock = getCrateInfo: lock: let
+  resolveDepsFromLock = getPkgInfo: lock: let
     # For git sources, they are referenced without the locked hash part after `#`.
     # Define: "git+https://github.com/dtolnay/semver?tag=1.0.4#ea9ea80c023ba3913b9ab0af1d983f137b4110a5"
-    # Reference: "semver 1.0.4 (git+https://github.com/dtolnay/semver?tag=1.0.4"
-    removeHash = s:
+    # Reference: "semver 1.0.4 (git+https://github.com/dtolnay/semver?tag=1.0.4)"
+    removeUrlHash = s:
       let m = match "([^#]*)#.*" s; in
       if m == null then s else elemAt m 0;
 
     pkgs = map
-      (pkg: if pkg ? source then pkg // { source = removeHash pkg.source; } else pkg)
+      (pkg: if pkg ? source then pkg // { source = removeUrlHash pkg.source; } else pkg)
       lock.package;
-
-    pkgId = { name, version, source ? "", ... }: "${name} ${version} (${source})";
 
     pkgsByName = foldl' (set: { name, ... }@pkg:
       set // { ${name} = (set.${name} or []) ++ [ pkg ]; }
@@ -41,10 +39,10 @@ in rec {
     resolved = listToAttrs (map resolvePkg pkgs);
 
     resolvePkg = { name, version, source ? "", dependencies ? [], ... }@args: let
-      info = getCrateInfo args;
+      info = getPkgInfo args;
       candidates = map findPkgId dependencies;
 
-      id = pkgId args;
+      id = toPkgId args;
       resolvedDependencies =
         map (dep: dep // {
           resolved = selectDep candidates dep;
@@ -95,11 +93,11 @@ in rec {
               Found: ${toJSON selected}
             ''
           else
-            pkgId (elemAt selected 0);
+            toPkgId (elemAt selected 0);
 
     in
       {
-        name = pkgId args;
+        name = toPkgId args;
         value = info // { dependencies = resolvedDependencies; };
       };
 
@@ -379,7 +377,7 @@ in rec {
           version = "0.2.95";
           dependencies = [ ];
         };
-        "testt 0.1.0 ()" = {
+        "testt 0.1.0 (local)" = {
           name = "testt";
           version = "0.1.0";
           dependencies = [
@@ -410,8 +408,8 @@ in rec {
         };
       };
 
-      getCrateInfo = { name, version, ... }: index.${name}.${version};
-      resolved = resolveDepsFromLock getCrateInfo lock;
+      getPkgInfo = { name, version, ... }: index.${name}.${version};
+      resolved = resolveDepsFromLock getPkgInfo lock;
     in
       assertEq resolved expected;
 
@@ -421,15 +419,15 @@ in rec {
       registry-crates-io = pkgs.nocargo.defaultRegistries."https://github.com/rust-lang/crates.io-index";
 
       cargoToml = fromTOML (readFile ./tests/tokio-app/Cargo.toml);
-      info = mkCrateInfoFromCargoToml cargoToml "<src>";
-      getCrateInfo = args:
+      info = mkPkgInfoFromCargoToml cargoToml "<src>";
+      getPkgInfo = args:
         if args ? source then
-          getCrateInfoFromIndex registry-crates-io args
+          getPkgInfoFromIndex registry-crates-io args
         else
           assert args.name == "tokio-app";
           info;
 
-      resolved = resolveDepsFromLock getCrateInfo lock;
+      resolved = resolveDepsFromLock getPkgInfo lock;
       resolved' = mapAttrs (id: { dependencies, ... }@args:
         args // {
           dependencies = filter (dep: !dep.optional && dep.kind != "dev") dependencies;
