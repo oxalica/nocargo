@@ -7,5 +7,15 @@ name = "bar"
 version = "0.1.0"
 
 [[package]]
+name = "baz"
+version = "0.1.0"
+dependencies = [
+ "bar",
+]
+
+[[package]]
 name = "foo"
 version = "0.1.0"
+dependencies = [
+ "bar",
+]

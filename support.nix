@@ -1,6 +1,6 @@
 { lib }:
 let
-  inherit (builtins) fromTOML fromJSON toJSON match tryEval split;
+  inherit (builtins) fromTOML fromJSON toJSON match tryEval split typeOf;
   inherit (lib)
     readFile mapAttrs warnIf
     isString replaceStrings hasPrefix

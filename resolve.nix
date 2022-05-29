@@ -55,9 +55,9 @@ in rec {
         lockVersion = elemAt m 2;
         lockSource = elemAt m 4;
         candidates =
-          filter ({ version, source, ... }:
-            (lockVersion == null || version == lockVersion) &&
-            (lockSource == null || source == lockSource))
+          filter (pkg:
+            (lockVersion != null -> pkg.version == lockVersion) &&
+            (lockSource != null -> pkg.source or null == lockSource))
           (pkgsByName.${lockName} or []);
         candidateCnt = length candidates;
       in
@@ -435,5 +435,54 @@ in rec {
       ) resolved;
     in
       assertEqFile resolved' ./tests/tokio-app/Cargo.lock.resolved.json; # Normalize.
+
+    workspace-virtual = let
+      lock = fromTOML (readFile ./tests/workspace-virtual/Cargo.lock);
+      cargoTomlFoo = fromTOML (readFile ./tests/workspace-virtual/crates/foo/Cargo.toml);
+      cargoTomlBar = fromTOML (readFile ./tests/workspace-virtual/crates/bar/Cargo.toml);
+      infoFoo = mkPkgInfoFromCargoToml cargoTomlFoo "<src>";
+      infoBar = mkPkgInfoFromCargoToml cargoTomlBar "<src>";
+
+      getCrateInfo = args:
+        if args ? source then
+          throw "No crates.io dependency"
+        else if args.name == "foo" then
+          infoFoo
+        else if args.name == "bar" then
+          infoBar
+        else
+          throw "Unknow crate: ${toJSON args}";
+
+      resolved = resolveDepsFromLock getCrateInfo lock;
+    in
+    assertEq resolved {
+      "bar 0.1.0 (local)" = {
+        dependencies = [];
+        features = {};
+        links = null;
+        name = "bar";
+        src = "<src>";
+        version = "0.1.0";
+      };
+      "foo 0.1.0 (local)" = {
+        dependencies = [ {
+          default_features = true;
+          features = [];
+          kind = "normal";
+          name = "bar";
+          optional = false;
+          package = "bar";
+          req = null;
+          resolved = "bar 0.1.0 (local)";
+          source = null;
+          target = null;
+        } ];
+        features = {};
+        links = null;
+        name = "foo";
+        src = "<src>";
+        version = "0.1.0";
+      };
+    };
   };
 }

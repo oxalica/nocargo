@@ -63,6 +63,6 @@ in
     tokio-app = mkPackage ./tokio-app;
 
     workspace-virtual = mkWorkspace ./workspace-virtual [ "bar" "foo" ] "foo";
-    workspace-inline = mkWorkspace ./workspace-inline [ "bar" "foo" ] "foo";
+    workspace-inline = mkWorkspace ./workspace-inline [ "bar" "baz" "foo" ] "foo";
   };
 }
