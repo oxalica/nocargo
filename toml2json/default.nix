@@ -7,17 +7,14 @@ let
       inherit sha256;
     };
 
-in stdenv.mkDerivation {
-  pname = "toml2json";
-  version = "0.0.0";
+  manifest = builtins.fromTOML (builtins.readFile ./Cargo.toml);
+  lock = builtins.fromTOML (builtins.readFile ./Cargo.lock);
 
-  srcs = [
-    (fetch "itoa" "0.4.7" "dd25036021b0de88a0aff6b850051563c6516d0bf53f8638938edbb9de732736")
-    (fetch "ryu" "1.0.5" "71d301d4193d031abdd79ff7e3dd721168a9572ef3fe51a1517aba235bd8f86e")
-    (fetch "serde" "1.0.126" "ec7505abeacaec74ae4778d9d9328fe5a5d04253220a85c4ee022239fc996d03")
-    (fetch "serde_json" "1.0.64" "799e97dc9fdae36a5c8b8f2cae9ce2ee9fdce2058c57a93e6099d919fd982f79")
-    (fetch "toml" "0.5.8" "a31142970826733df8241ef35dc040ef98c679ab14d7c3e54d827099b3acecaa")
-  ];
+in stdenv.mkDerivation {
+  pname = manifest.package.name;
+  version = manifest.package.version;
+
+  srcs = map ({ name, version, checksum ? null, ... }: if checksum != null then fetch name version checksum else null) lock.package;
 
   sourceRoot = ".";
 
@@ -30,6 +27,7 @@ in stdenv.mkDerivation {
       -L .
       -C codegen-units=1
       -C opt-level=3
+      --cap-lints allow
     )
 
     run() {
