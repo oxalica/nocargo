@@ -34,6 +34,7 @@ configurePhase() {
     if [[ "$(jq --raw-output '.lib."proc-macro"' "$cargoTomlJson")" == true ]]; then
         # Override crate type.
         crateTypes=("proc-macro")
+        buildFlagsArray+=(--extern=proc_macro)
         mkdir -p $dev/rust-support
         touch $dev/rust-support/is-proc-macro
     fi
