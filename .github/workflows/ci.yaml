@@ -1,0 +1,13 @@
+name: CI
+on:
+  pull_request:
+  push:
+
+jobs:
+  flake-check:
+    name: Flake check (locked)
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3.0.2
+    - uses: cachix/install-nix-action@v17
+    - run: nix flake check --show-trace --no-update-lock-file
