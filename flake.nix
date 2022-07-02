@@ -8,7 +8,7 @@
     };
   };
 
-  outputs = { self, flake-utils, nixpkgs, registry-crates-io }:
+  outputs = { self, flake-utils, nixpkgs, registry-crates-io }@inputs:
     let
       supportedSystems = [ "x86_64-linux" ];
 
@@ -54,9 +54,9 @@
         packages = rec {
           default = noc;
           toml2json = pkgs.callPackage ./toml2json { };
-          noc = self.lib.${system}.buildRustPackageFromSrcAndLock {
+          noc = (self.lib.${system}.buildRustPackageFromSrcAndLock {
             src = ./noc;
-          };
+          }).bin;
         };
 
         checks = let
@@ -135,9 +135,7 @@
 
             _0200-resolve-deps = resolve.resolve-deps-tests;
             _0201-build-from-src-dry = support.build-from-src-dry-tests;
-
-            _1000-build = import ./tests { inherit pkgs self; };
-          };
+          } // import ./tests { inherit pkgs self inputs; };
 
           flattenTests = prefix: v:
             if isDerivation v then {

@@ -41,7 +41,11 @@ impl super::App for Args {
         let manifest = Manifest::from_path(&cargo_toml_path)
             .with_context(|| format!("Cannot load Cargo.toml at {:?}", cargo_toml_path))?;
 
-        let out = generate_flake(&manifest)?;
+        let has_binary = !manifest.bin.is_empty()
+            || root.join("src/main.rs").exists()
+            || root.join("src/bin").exists();
+
+        let out = generate_flake(&manifest, has_binary)?;
 
         if self.print {
             println!("{}", out);
@@ -64,6 +68,7 @@ impl super::App for Args {
 #[template(path = "../templates/init-flake.nix", escape = "none")]
 struct FlakeTemplate {
     main_pkg_name: String,
+    has_binary: bool,
     // source_id ->  flake_ref
     registries: BTreeMap<String, String>,
     // source_id ->  flake_ref
@@ -90,7 +95,7 @@ mod filters {
     }
 }
 
-fn generate_flake(manifest: &Manifest) -> Result<String> {
+fn generate_flake(manifest: &Manifest, has_binary: bool) -> Result<String> {
     // TODO
     ensure!(manifest.patch.is_empty(), "[patch] is not supported yet");
     // TODO
@@ -106,6 +111,7 @@ fn generate_flake(manifest: &Manifest) -> Result<String> {
         .name
         .clone();
     let mut templ = FlakeTemplate {
+        has_binary,
         main_pkg_name,
         registries: Default::default(),
         git_srcs: Default::default(),

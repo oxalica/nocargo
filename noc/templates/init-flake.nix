@@ -51,7 +51,7 @@
 
       in rec {
         packages = {
-          default = packages.{{ main_pkg_name|ident_or_str }};
+          default = packages.{{ main_pkg_name|ident_or_str }}{% if has_binary %}.bin{% endif %};
           {{ main_pkg_name|ident_or_str }} = nocargo.lib.${system}.buildRustPackageFromSrcAndLock {
             src = ./.;
             inherit rustc

@@ -1,7 +1,8 @@
-{ pkgs, self }:
+{ pkgs, self, inputs }:
 let
-  inherit (pkgs.lib) listToAttrs flatten mapAttrsToList;
+  inherit (pkgs.lib) listToAttrs flatten mapAttrsToList mapAttrs;
   inherit (self.lib.${pkgs.system}) buildRustPackageFromSrcAndLock buildRustWorkspaceFromSrcAndLock;
+  inherit (self.packages.${pkgs.system}) noc;
 
   git-semver = builtins.fetchTarball {
     url = "https://github.com/dtolnay/semver/archive/1.0.4/master.tar.gz";
@@ -50,9 +51,22 @@ let
       assert builtins.attrNames set == expectMembers;
       set.${entry};
 
+  # Check `noc init`.
+  # TODO: Recursive nix?
+  mkGenInit = name: path:
+    pkgs.runCommandNoCC "gen-${name}" {
+      nativeBuildInputs = [ noc pkgs.nix ];
+    } ''
+      cp -r ${path} build
+      chmod -R u+w build
+      cd build
+      noc init
+      install -D flake.nix $out/flake.nix
+    '';
+
 in
 {
-  hello-worlds = mkHelloWorlds {
+  _1000-hello-worlds = mkHelloWorlds {
     custom-lib-name = mkPackage ./custom-lib-name;
     dep-source-kinds = mkPackage ./dep-source-kinds;
     dependent = mkPackage ./dependent;
@@ -65,5 +79,20 @@ in
 
     workspace-virtual = mkWorkspace ./workspace-virtual [ "bar" "foo" ] "foo";
     workspace-inline = mkWorkspace ./workspace-inline [ "bar" "baz" "foo" ] "foo";
+  };
+
+  _1100-gen-init = mapAttrs mkGenInit {
+    custom-lib-name = ./custom-lib-name;
+    dep-source-kinds = ./dep-source-kinds;
+    dependent = ./dependent;
+    libz-link = ./libz-link;
+    simple-features = ./simple-features;
+    test-openssl = ./test-openssl;
+    test-rand = ./test-rand;
+    test-rustls = ./test-rustls;
+    tokio-app = ./tokio-app;
+
+    # workspace-virtual = ./workspace-virtual;
+    # workspace-inline = ./workspace-inline;
   };
 }
