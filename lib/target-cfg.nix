@@ -1,4 +1,4 @@
-{ lib, rust }:
+{ lib, ... }:
 let
   inherit (builtins) match tryEval;
   inherit (lib)
@@ -7,13 +7,22 @@ let
     optionalAttrs filterAttrs mapAttrsToList;
 in
 rec {
+  # https://doc.rust-lang.org/reference/conditional-compilation.html#target_arch
+  platformToTargetArch = platform:
+    if platform.isAarch32 then "arm"
+    else platform.parsed.cpu.name;
+
+  # https://doc.rust-lang.org/reference/conditional-compilation.html#target_os
+  platformToTargetOs = platform:
+    if platform.isDarwin then "macos"
+    else platform.parsed.kernel.name;
 
   # https://github.com/rust-lang/rust/blob/9bc8c42bb2f19e745a63f3445f1ac248fb015e53/compiler/rustc_session/src/config.rs#L835
   # https://doc.rust-lang.org/reference/conditional-compilation.html
   platformToCfgAttrs = platform: {
     # Arch info.
     # https://github.com/NixOS/nixpkgs/blob/c63d4270feed5eb6c578fe2d9398d3f6f2f96811/pkgs/build-support/rust/build-rust-crate/configure-crate.nix#L126
-    target_arch = rust.toTargetArch platform;
+    target_arch = platformToTargetArch platform;
     target_endian = if platform.isLittleEndian then "little"
       else if platform.isBigEndian then "big"
       else throw "Unknow target_endian for ${platform.config}";
@@ -25,7 +34,7 @@ rec {
     target_family = if platform.isUnix then "unix"
       else if platform.isWindows then "windows"
       else null;
-    target_os = rust.toTargetOs platform;
+    target_os = platformToTargetOs platform;
     target_pointer_width = toString platform.parsed.cpu.bits;
     target_vendor = platform.parsed.vendor.name;
   } // optionalAttrs platform.isx86 {

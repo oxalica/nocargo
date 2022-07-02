@@ -1,4 +1,4 @@
-{ lib }:
+{ lib, ... }:
 let
   inherit (builtins) match readDir split foldl';
   inherit (lib)
@@ -193,12 +193,9 @@ rec {
       deep4 = assertMatch "[wz]/**" [ "z" "z/a" "z/b" "z/b/c" "z/b/d" "z/b/d/e" ];
     };
 
-    "2match-dir" = let
-      assertMatch = glob: expect:
-        assertEq (globMatchDir glob ./.) expect;
-    in {
-      compound1 = assertMatch "./gl[aeiou]b.*" [ "glob.nix" ];
-      compound2 = assertMatch "./tests/dependent/../**/tokio-[!wtf][opq]?" [ "tests/tokio-app" ];
+    "2match-dir" = {
+      compound1 = assertEq (globMatchDir "*-*.nix" ./.) [ "pkg-info.nix" "target-cfg.nix" ];
+      compound2 = assertEq (globMatchDir "./dependent/../**/tokio-[!wtf][opq]?" ../tests) [ "tokio-app" ];
     };
   };
 }

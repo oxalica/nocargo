@@ -1,14 +1,14 @@
-{ lib }:
+{ lib, self }:
 let
   inherit (builtins) fromTOML fromJSON toJSON match tryEval split typeOf;
   inherit (lib)
     readFile mapAttrs warnIf
     isString replaceStrings hasPrefix
     filter flatten elem elemAt listToAttrs subtractLists concatStringsSep;
-  inherit (lib.nocargo)
-    mkPkgInfoFromCargoToml getPkgInfoFromIndex resolveDepsFromLock resolveFeatures toPkgId
-    platformToCfgs evalTargetCfgStr
-    globMatchDir;
+  inherit (self.pkg-info) mkPkgInfoFromCargoToml getPkgInfoFromIndex toPkgId;
+  inherit (self.resolve) resolveDepsFromLock resolveFeatures;
+  inherit (self.target-cfg) platformToCfgs evalTargetCfgStr;
+  inherit (self.glob) globMatchDir;
 in
 rec {
   buildRustPackageFromSrcAndLock =
@@ -213,12 +213,12 @@ rec {
       else
         pkgs;
 
-  build-from-src-dry-tests = { assertEq, assertEqFile, pkgs, ... }: let
+  build-from-src-dry-tests = { assertEq, pkgs, defaultRegistries, ... }: let
     inherit (builtins) seq toJSON head listToAttrs;
 
     buildRustPackageFromSrcAndLock' = buildRustPackageFromSrcAndLock {
       inherit (pkgs) stdenv buildPackages;
-      inherit (pkgs.nocargo) defaultRegistries;
+      inherit defaultRegistries;
       buildRustCrate = args: args;
     };
 
@@ -230,11 +230,11 @@ rec {
 
   in
   {
-    simple-features = let ret = build ./tests/simple-features {}; in
+    simple-features = let ret = build ../tests/simple-features {}; in
       assertEq ret.features [ "a" "default" ];
 
     dependent = let
-      ret = build ./tests/dependent {};
+      ret = build ../tests/dependent {};
       semver = (head ret.dependencies).drv;
       serde = (head semver.dependencies).drv;
     in assertEq
@@ -242,7 +242,7 @@ rec {
       { pname = "semver"; features = [ "default" "serde" "std" ]; serde = "serde"; };
 
     dependent-overrided = let
-      ret = build ./tests/dependent {
+      ret = build ../tests/dependent {
         buildCrateOverrides."" = old: { a = "b"; };
         buildCrateOverrides."serde 1.0.126 (registry+https://github.com/rust-lang/crates.io-index)" = old: {
           buildInputs = [ "some-inputs" ];
@@ -254,9 +254,9 @@ rec {
       assertEq serde.buildInputs [ "some-inputs" ];
 
     dep-source-kinds = let
-      mkSrc = from: { __toString = _: ./tests/dep-source-kinds/fake-semver; inherit from; };
+      mkSrc = from: { __toString = _: ../tests/dep-source-kinds/fake-semver; inherit from; };
 
-      ret = build ./tests/dep-source-kinds {
+      ret = build ../tests/dep-source-kinds {
         gitSources = {
           "https://github.com/dtolnay/semver?tag=1.0.4" = mkSrc "tag";
           "git://github.com/dtolnay/semver?branch=master" = mkSrc "branch";
@@ -280,14 +280,14 @@ rec {
       };
 
     openssl = let
-      ret = build ./tests/test-openssl {};
+      ret = build ../tests/test-openssl {};
       openssl = (head ret.dependencies).drv;
       openssl-sys = (head openssl.linksDependencies).drv;
     in
       assertEq (head openssl-sys.propagatedBuildInputs).pname "openssl";
 
     libz-link = let
-      ret = build ./tests/libz-link {};
+      ret = build ../tests/libz-link {};
       libz = (head ret.dependencies).drv;
       libz' = (head ret.linksDependencies).drv;
     in

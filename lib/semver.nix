@@ -1,4 +1,4 @@
-{ lib }:
+{ lib, ... }:
 let
   inherit (builtins) match elemAt from fromJSON;
   inherit (lib) compare compareLists splitString all any;

@@ -1,10 +1,11 @@
-{ lib }:
+{ lib, self }:
 let
   inherit (builtins) readFile match fromTOML fromJSON toJSON;
   inherit (lib)
     foldl' foldr concatStringsSep listToAttrs filter elemAt length optional sort
     mapAttrs attrNames filterAttrs composeManyExtensions;
-  inherit (lib.nocargo) parseSemverReq mkPkgInfoFromCargoToml getPkgInfoFromIndex toPkgId;
+  inherit (self.semver) parseSemverReq;
+  inherit (self.pkg-info) mkPkgInfoFromCargoToml getPkgInfoFromIndex toPkgId sanitizeDep;
 in rec {
 
   # Resolve the dependencies graph based on the lock file.
@@ -326,10 +327,8 @@ in rec {
     };
   };
 
-  resolve-deps-tests = { assertEq, assertEqFile, pkgs, ... }: {
+  resolve-deps-tests = { assertEq, assertEqFile, defaultRegistries, pkgs, ... }: {
     simple = let
-      inherit (lib.nocargo) sanitizeDep;
-
       index = {
         libc."0.1.12" = { name = "libc"; version = "0.1.12"; dependencies = []; };
         libc."0.2.95" = { name = "libc"; version = "0.2.95"; dependencies = []; };
@@ -414,11 +413,11 @@ in rec {
       assertEq resolved expected;
 
     tokio-app = let
-      lock = fromTOML (readFile ./tests/tokio-app/Cargo.lock);
+      lock = fromTOML (readFile ../tests/tokio-app/Cargo.lock);
 
-      registry-crates-io = pkgs.nocargo.defaultRegistries."https://github.com/rust-lang/crates.io-index";
+      registry-crates-io = defaultRegistries."https://github.com/rust-lang/crates.io-index";
 
-      cargoToml = fromTOML (readFile ./tests/tokio-app/Cargo.toml);
+      cargoToml = fromTOML (readFile ../tests/tokio-app/Cargo.toml);
       info = mkPkgInfoFromCargoToml cargoToml "<src>";
       getPkgInfo = args:
         if args ? source then
@@ -434,12 +433,12 @@ in rec {
         }
       ) resolved;
     in
-      assertEqFile resolved' ./tests/tokio-app/Cargo.lock.resolved.json; # Normalize.
+      assertEqFile resolved' ../tests/tokio-app/Cargo.lock.resolved.json; # Normalize.
 
     workspace-virtual = let
-      lock = fromTOML (readFile ./tests/workspace-virtual/Cargo.lock);
-      cargoTomlFoo = fromTOML (readFile ./tests/workspace-virtual/crates/foo/Cargo.toml);
-      cargoTomlBar = fromTOML (readFile ./tests/workspace-virtual/crates/bar/Cargo.toml);
+      lock = fromTOML (readFile ../tests/workspace-virtual/Cargo.lock);
+      cargoTomlFoo = fromTOML (readFile ../tests/workspace-virtual/crates/foo/Cargo.toml);
+      cargoTomlBar = fromTOML (readFile ../tests/workspace-virtual/crates/bar/Cargo.toml);
       infoFoo = mkPkgInfoFromCargoToml cargoTomlFoo "<src>";
       infoBar = mkPkgInfoFromCargoToml cargoTomlBar "<src>";
 

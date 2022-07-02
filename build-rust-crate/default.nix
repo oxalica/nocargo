@@ -1,4 +1,4 @@
-{ lib, stdenv, buildPackages, rust, toml2json, jq }:
+{ lib, nocargo-lib, stdenv, buildPackages, rust, toml2json, jq }:
 { pname
 , version
 , src
@@ -19,6 +19,8 @@
 }@args:
 assert lib.elem profile [ "dev" "release" ];
 let
+  inherit (nocargo-lib.target-cfg) platformToCfgAttrs;
+
   mkRustcMeta = dependencies: features: let
     deps = lib.concatMapStrings (dep: dep.drv.rustcMeta) dependencies;
     feats = lib.concatStringsSep ";" features;
@@ -88,7 +90,7 @@ let
     value = if lib.isList value then lib.concatStringsSep "," value
       else if value == true then ""
       else value;
-  }) (lib.nocargo.platformToCfgAttrs stdenv.hostPlatform);
+  }) (platformToCfgAttrs stdenv.hostPlatform);
 
   buildDrv = stdenv.mkDerivation ({
     name = "rust_${pname}${profileExt}-build-${version}";

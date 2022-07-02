@@ -1,9 +1,9 @@
-{ lib, fetchurl }:
+{ lib, ... }:
 let
-  inherit (builtins) readFile readDir fromJSON fromTOML toString attrNames;
+  inherit (builtins) readFile readDir fromJSON fromTOML toString attrNames match;
   inherit (lib)
     stringLength splitString replaceStrings substring isString
-    filter listToAttrs mapAttrs mapAttrsToList optionalAttrs;
+    filter listToAttrs mapAttrs mapAttrsToList optionalAttrs warnIf;
 in
 rec {
   toPkgId = { name, version, source ? null, ... }:
@@ -12,18 +12,27 @@ rec {
     else
       "${name} ${version} (local)";
 
-  mkIndex = path: overrides: let
+  mkIndex = fetchurl: path: overrides: let
     # TODO: We currently only support legacy format used by crates.io-index.
     # https://github.com/rust-lang/cargo/blob/2f3df16921deb34a92700f4d5a7ecfb424739558/src/cargo/sources/registry/mod.rs#L230-L244
     downloadEndpoint = (fromJSON (readFile "${path}/config.json")).dl;
-    mkDownloadUrl = name: version:
-      "${downloadEndpoint}/${name}/${version}/download";
+    mkDownloadUrl =
+      assert match ".*\\{.*" downloadEndpoint == null;
+      { name, version, ... }: "${downloadEndpoint}/${name}/${version}/download";
+
+    mkSrc = { name, version, sha256 }@args: fetchurl {
+      # Use the same name as nixpkgs to benifit from cache.
+      # https://github.com/NixOS/nixpkgs/pull/122158/files#diff-eb8b8729bfd36f8878c2d8a99f67a2bebb912e9f78c5d2a72457b1f572e26986R67
+      name = "crate-${name}-${version}.tar.gz";
+      url = mkDownloadUrl args;
+      inherit sha256;
+    };
 
     go = path:
       mapAttrs (k: v:
         if v == "directory"
           then go "${path}/${k}"
-          else mkPkgInfoSet mkDownloadUrl k (readFile "${path}/${k}") (overrides.${k} or null)
+          else mkPkgInfoSet mkSrc k (readFile "${path}/${k}") (overrides.${k} or null)
       ) (removeAttrs (readDir path) [ "config.json" ]);
   in
     go path // { __registry_index = true; };
@@ -54,11 +63,11 @@ rec {
       info;
 
   # Make a set of pkg infos keyed by version.
-  mkPkgInfoSet = mkDownloadUrl: name: content: override: let
+  mkPkgInfoSet = mkSrc: name: content: override: let
     lines = filter (line: line != "") (splitString "\n" content);
     parseLine = line: let parsed = fromJSON line; in {
       name = parsed.vers;
-      value = mkPkgInfo mkDownloadUrl parsed
+      value = mkPkgInfoFromRegistry mkSrc parsed
         // optionalAttrs (override != null) { __override = override; };
     };
   in
@@ -90,8 +99,8 @@ rec {
   #     }
   #   ];
   # }
-  mkPkgInfo =
-    mkDownloadUrl:
+  mkPkgInfoFromRegistry =
+    mkSrc:
     # https://github.com/rust-lang/cargo/blob/2f3df16921deb34a92700f4d5a7ecfb424739558/src/cargo/sources/registry/mod.rs#L259
     { name, vers, deps, features, cksum, yanked ? false, links ? null, v ? 1, ... }:
     if v != 1 then
@@ -102,11 +111,9 @@ rec {
       version = vers;
       sha256 = cksum;
       dependencies = map sanitizeDep deps;
-      src = fetchurl {
-        # Use the same name as nixpkgs to benifit from cache.
-        # https://github.com/NixOS/nixpkgs/pull/122158/files#diff-eb8b8729bfd36f8878c2d8a99f67a2bebb912e9f78c5d2a72457b1f572e26986R67
-        name = "crate-${name}-${vers}.tar.gz";
-        url = mkDownloadUrl name vers;
+      src = mkSrc {
+        inherit name;
+        version = vers;
         sha256 = cksum;
       };
     };
@@ -155,7 +162,7 @@ rec {
           optional = v.optional or false;
           # It's `default-features` in Cargo.toml, but `default_features` in index and in pkg info.
           default_features =
-            lib.warnIf (v ? default_features) "Ignoring `default_features`. Do you mean `default-features`?"
+            warnIf (v ? default_features) "Ignoring `default_features`. Do you mean `default-features`?"
             (v.default-features or true);
 
           # This is used for dependency resoving inside Cargo.lock.
@@ -196,9 +203,9 @@ rec {
         mapAttrsToList collectTargetDeps target;
     };
 
-  crate-info-from-toml-tests = { assertEq, ... }: {
+  pkg-info-from-toml-tests = { assertEq, ... }: {
     simple = let
-      cargoToml = fromTOML (readFile ./tests/tokio-app/Cargo.toml);
+      cargoToml = fromTOML (readFile ../tests/tokio-app/Cargo.toml);
       info = mkPkgInfoFromCargoToml cargoToml "<src>";
 
       expected = {

@@ -1,6 +1,6 @@
 {
   inputs = {
-    flake-util.url = "github:numtide/flake-utils";
+    flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     registry-crates-io = {
       url = "github:rust-lang/crates.io-index";
@@ -8,38 +8,55 @@
     };
   };
 
-  outputs = { self, flake-util, nixpkgs, registry-crates-io }:
+  outputs = { self, flake-utils, nixpkgs, registry-crates-io }:
     let
       supportedSystems = [ "x86_64-linux" ];
-
-      inherit (flake-util.lib) eachSystem;
 
       inherit (builtins) readFile fromJSON toJSON typeOf;
       inherit (nixpkgs.lib)
         isDerivation isFunction isAttrs mapAttrs mapAttrsToList listToAttrs
         replaceStrings flatten composeExtensions;
 
-      overlay = composeExtensions (import ./.) (final: prev: {
-        nocargo = prev.nocargo // {
-          defaultRegistries."https://github.com/rust-lang/crates.io-index" =
-            final.lib.nocargo.mkIndex registry-crates-io
-            (import ./crates-io-override { inherit (final) lib pkgs; });
-        };
-      });
+      nocargo-lib = import ./lib { inherit (nixpkgs) lib; };
 
-    in {
-      overlays.default = overlay;
-    } // eachSystem supportedSystems (system:
+    in flake-utils.lib.eachSystem supportedSystems (system:
       let
-        inherit (import nixpkgs {
-          inherit system;
-          overlays = [ overlay ];
-        })
-          pkgs;
-      in {
+        pkgs = nixpkgs.legacyPackages.${system};
+        defaultRegistries = {
+          "https://github.com/rust-lang/crates.io-index" =
+            nocargo-lib.pkg-info.mkIndex pkgs.fetchurl registry-crates-io
+            (import ./crates-io-override {
+              inherit (nixpkgs) lib;
+              inherit pkgs;
+            });
+        };
+      in rec {
+
+        # Is there a better place? `naersk` places builders under `lib.${system}`.
+        lib = rec {
+          mkIndex = nocargo-lib.pkg-info.mkIndex pkgs.fetchurl;
+          buildRustCrate = pkgs.callPackage ./build-rust-crate {
+            inherit (packages) toml2json;
+            inherit nocargo-lib;
+          };
+          buildRustPackageFromSrcAndLock =
+            nocargo-lib.support.buildRustPackageFromSrcAndLock {
+              inherit defaultRegistries buildRustCrate;
+              inherit (pkgs) stdenv buildPackages;
+            };
+          buildRustWorkspaceFromSrcAndLock =
+            nocargo-lib.support.buildRustWorkspaceFromSrcAndLock {
+              inherit defaultRegistries buildRustCrate;
+              inherit (pkgs) stdenv buildPackages;
+            };
+        };
+
         packages = rec {
-          nocargo = pkgs.nocargo.nocargo.bin;
           default = nocargo;
+          toml2json = pkgs.callPackage ./toml2json { };
+          nocargo = self.lib.${system}.buildRustPackageFromSrcAndLock {
+            src = ./nocargo;
+          };
         };
 
         checks = let
@@ -51,7 +68,7 @@
           };
 
           checkArgs = {
-            inherit pkgs;
+            inherit pkgs defaultRegistries;
 
             assertEq = got: expect: {
               __assertion = true;
@@ -103,23 +120,23 @@
             };
           };
 
-          tests = with pkgs.lib.nocargo; {
-            _0000-semver-compare = semver-compare-tests;
-            _0001-semver-req = semver-req-tests;
-            _0002-cfg-parser = cfg-parser-tests;
-            _0003-cfg-eval = cfg-eval-tests;
-            _0004-platform-cfg = platform-cfg-tests;
-            _0005-glob = glob-tests;
-            _0006-sanitize-relative-path = sanitize-relative-path-tests;
+          tests = with nocargo-lib; {
+            _0000-semver-compare = semver.semver-compare-tests;
+            _0001-semver-req = semver.semver-req-tests;
+            _0002-cfg-parser = target-cfg.cfg-parser-tests;
+            _0003-cfg-eval = target-cfg.cfg-eval-tests;
+            _0004-platform-cfg = target-cfg.platform-cfg-tests;
+            _0005-glob = glob.glob-tests;
+            _0006-sanitize-relative-path = support.sanitize-relative-path-tests;
 
-            _0100-crate-info-from-toml = crate-info-from-toml-tests;
-            _0101-update-feature = update-feature-tests;
-            _0102-resolve-feature = resolve-feature-tests;
+            _0100-pkg-info-from-toml = pkg-info.pkg-info-from-toml-tests;
+            _0101-update-feature = resolve.update-feature-tests;
+            _0102-resolve-feature = resolve.resolve-feature-tests;
 
-            _0200-resolve-deps = resolve-deps-tests;
-            _0201-build-from-src-dry = build-from-src-dry-tests;
+            _0200-resolve-deps = resolve.resolve-deps-tests;
+            _0201-build-from-src-dry = support.build-from-src-dry-tests;
 
-            _1000-build = import ./tests { inherit pkgs; };
+            _1000-build = import ./tests { inherit pkgs self; };
           };
 
           flattenTests = prefix: v:

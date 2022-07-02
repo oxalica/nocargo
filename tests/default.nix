@@ -1,6 +1,7 @@
-{ pkgs ? import <nixpkgs> { overlays = [ (builtins.getFlake (toString ../.)).outputs.overlay ]; } }:
+{ pkgs, self }:
 let
-  inherit (pkgs) lib;
+  inherit (pkgs.lib) listToAttrs flatten mapAttrsToList;
+  inherit (self.lib.${pkgs.system}) buildRustPackageFromSrcAndLock buildRustWorkspaceFromSrcAndLock;
 
   git-semver = builtins.fetchTarball {
     url = "https://github.com/dtolnay/semver/archive/1.0.4/master.tar.gz";
@@ -32,17 +33,17 @@ let
         { name = name + "-debug"; value = shouldBeHelloWorld (f "dev"); }
       ];
     in
-      lib.listToAttrs
-        (lib.flatten
-          (lib.mapAttrsToList genProfiles set));
+      listToAttrs
+        (flatten
+          (mapAttrsToList genProfiles set));
 
-  mkPackage = src: profile: pkgs.nocargo.buildRustPackageFromSrcAndLock {
+  mkPackage = src: profile: buildRustPackageFromSrcAndLock {
     inherit src profile gitSources;
   };
 
   mkWorkspace = src: expectMembers: entry: profile:
     let
-      set = pkgs.nocargo.buildRustWorkspaceFromSrcAndLock {
+      set = buildRustWorkspaceFromSrcAndLock {
         inherit src profile;
       };
     in
