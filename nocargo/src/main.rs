@@ -1,29 +1,26 @@
 use anyhow::Result;
-use structopt::StructOpt;
+use clap::Parser;
 
-mod build;
 mod init;
 
-pub trait App {
+trait App {
     fn run(self) -> Result<()>;
 }
 
-#[derive(StructOpt)]
-enum Opt {
-    Build(build::Opt),
-    Init(init::Opt),
+#[derive(Parser)]
+#[clap(version, about, long_about = None)]
+enum Args {
+    Init(init::Args),
 }
 
-impl App for Opt {
+impl App for Args {
     fn run(self) -> Result<()> {
         match self {
-            Self::Build(opt) => opt.run(),
-            Self::Init(opt) => opt.run(),
+            Self::Init(args) => args.run(),
         }
     }
 }
 
 fn main() -> Result<()> {
-    let opt = Opt::from_args();
-    opt.run()
+    Args::from_args().run()
 }
