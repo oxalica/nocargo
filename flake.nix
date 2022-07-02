@@ -52,10 +52,10 @@
         };
 
         packages = rec {
-          default = nocargo;
+          default = noc;
           toml2json = pkgs.callPackage ./toml2json { };
-          nocargo = self.lib.${system}.buildRustPackageFromSrcAndLock {
-            src = ./nocargo;
+          noc = self.lib.${system}.buildRustPackageFromSrcAndLock {
+            src = ./noc;
           };
         };
 
