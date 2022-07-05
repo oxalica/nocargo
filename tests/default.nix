@@ -77,6 +77,8 @@ in
     custom-lib-name = mkHelloWorldTest ./custom-lib-name;
     dep-source-kinds = mkHelloWorldTest ./dep-source-kinds;
     dependent = mkHelloWorldTest ./dependent;
+    dependent-v1 = mkHelloWorldTest ./dependent-v1;
+    dependent-v2 = mkHelloWorldTest ./dependent-v2;
     libz-link = mkHelloWorldTest ./libz-link;
     simple-features = mkHelloWorldTest ./simple-features;
     test-openssl = mkHelloWorldTest ./test-openssl;

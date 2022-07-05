@@ -3,7 +3,7 @@ let
   inherit (builtins) readFile match fromTOML fromJSON toJSON;
   inherit (lib)
     foldl' foldr concatStringsSep listToAttrs filter elemAt length optional sort
-    mapAttrs attrNames filterAttrs composeManyExtensions;
+    mapAttrs attrNames filterAttrs composeManyExtensions assertMsg;
   inherit (self.semver) parseSemverReq;
   inherit (self.pkg-info) mkPkgInfoFromCargoToml getPkgInfoFromIndex toPkgId sanitizeDep;
 in rec {
@@ -21,6 +21,12 @@ in rec {
   #     };
   #   };
   # }
+  #
+  # Currently (rust 1.63.0), there are 3 versions of the lock file.
+  # We supports V1, V2 and V3.
+  # See:
+  # https://github.com/rust-lang/cargo/blob/rust-1.63.0/src/cargo/core/resolver/resolve.rs#L56
+  # https://github.com/rust-lang/cargo/blob/rust-1.63.0/src/cargo/core/resolver/encode.rs
   resolveDepsFromLock = getPkgInfo: lock: let
     # For git sources, they are referenced without the locked hash part after `#`.
     # Define: "git+https://github.com/dtolnay/semver?tag=1.0.4#ea9ea80c023ba3913b9ab0af1d983f137b4110a5"
@@ -103,6 +109,7 @@ in rec {
       };
 
   in
+    assert assertMsg (lock.version or 3 == 3) "Unsupported version of Cargo.lock: ${toString lock.version}";
     resolved;
 
   # Enable `features` in `prev` and do recursive update according to `defs`.
