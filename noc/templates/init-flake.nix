@@ -42,7 +42,7 @@
         {%- endif %}
         {%- if !git_srcs.is_empty() %}
         # Referenced external rust packages from git.
-        gitSources = {
+        gitSrcs = {
           {%- for (source_id, _) in git_srcs %}
           "{{ source_id|nix_escape }}" = inputs.git-{{ loop.index }};
           {%- endfor %}
@@ -52,11 +52,11 @@
       in rec {
         packages = {
           default = packages.{{ main_pkg_name|ident_or_str }}{% if has_binary %}.bin{% endif %};
-          {{ main_pkg_name|ident_or_str }} = nocargo.lib.${system}.buildRustPackageFromSrcAndLock {
+          {{ main_pkg_name|ident_or_str }} = nocargo.lib.${system}.mkRustPackage {
             src = ./.;
             inherit rustc
               {%- if !registries.is_empty() %} extraRegistries{% endif %}
-              {%- if !git_srcs.is_empty() %} gitSources{% endif %};
+              {%- if !git_srcs.is_empty() %} gitSrcs{% endif %};
           };
         };
       });

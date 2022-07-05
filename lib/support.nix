@@ -1,41 +1,108 @@
 { lib, self }:
 let
-  inherit (builtins) fromTOML fromJSON toJSON match tryEval split typeOf;
+  inherit (builtins) fromTOML toJSON match tryEval split;
   inherit (lib)
-    readFile mapAttrs warnIf
-    isString replaceStrings hasPrefix
-    filter flatten elem elemAt listToAttrs subtractLists concatStringsSep;
+    readFile mapAttrs mapAttrs' assertMsg makeOverridable
+    isString hasPrefix
+    filter flatten elem elemAt listToAttrs subtractLists concatStringsSep
+    head attrValues;
   inherit (self.pkg-info) mkPkgInfoFromCargoToml getPkgInfoFromIndex toPkgId;
   inherit (self.resolve) resolveDepsFromLock resolveFeatures;
   inherit (self.target-cfg) platformToCfgs evalTargetCfgStr;
   inherit (self.glob) globMatchDir;
 in
 rec {
-  buildRustPackageFromSrcAndLock =
-    { defaultRegistries, buildRustCrate, stdenv, buildPackages }:
-    { src
-    , cargoTomlFile ? src + "/Cargo.toml"
-    , cargoLockFile ? src + "/Cargo.lock"
-    , features ? null
-    , profile ? "release"
-    , extraRegistries ? {}
-    , gitSources ? {}
-    , rustc ? buildPackages.rustc
-    , buildCrateOverrides ? {}
-    , dontWarnForWorkspace ? false
-    , workspacePkgInfos ? {}
+  mkRustPackage =
+    { defaultRegistries, pkgsBuildHost, buildRustCrate, stdenv }@default:
+    { src # : Path
+    , gitSrcs ? {} # : Attrset Path
+    , profile ? "release" # : String
+    , buildCrateOverrides ? {} # : Attrset (Attrset _)
+    , extraRegistries ? {} # : Attrset Registry
+    , registries ? defaultRegistries // extraRegistries
+
+    , rustc ? pkgsBuildHost.rustc
+    , stdenv ? default.stdenv
     }:
-    assert elem profile [ "dev" "release" ];
     let
-      cargoToml = fromTOML (readFile cargoTomlFile);
-      cargoLock = fromTOML (readFile cargoLockFile);
+      manifest = fromTOML (readFile (src + "/Cargo.toml"));
 
-      rootInfo = mkPkgInfoFromCargoToml cargoToml src // {
-        isRootPkg = true;
+      ws = mkRustPackageSet {
+        lock = fromTOML (readFile (src + "/Cargo.lock"));
+
+        localSrcInfos.${toPkgId manifest.package} = mkPkgInfoFromCargoToml manifest src;
+
+        gitSrcInfos = mapAttrs (url: src:
+          mkPkgInfoFromCargoToml (fromTOML (readFile (src + "/Cargo.toml"))) src
+        ) gitSrcs;
+
+        inherit buildRustCrate profile buildCrateOverrides registries rustc stdenv;
       };
-      rootId = toPkgId rootInfo;
 
-      registries = defaultRegistries // extraRegistries;
+      mainPkg = head (attrValues ws.pkgs);
+
+    in
+    assert assertMsg (!(manifest ? workspace)) ''
+      `mkRustPackage` called on a workspace: ${src}
+      Do you mean to call `mkRustWorkspace`?
+    '';
+    mainPkg;
+
+  mkRustWorkspace =
+    { defaultRegistries, pkgsBuildHost, buildRustCrate, stdenv }@default:
+    { src # : Path
+    , gitSrcs ? {} # : Attrset Path
+    , profile ? "release" # : String
+    , buildCrateOverrides ? {} # : Attrset (Attrset _)
+    , extraRegistries ? {} # : Attrset Registry
+    , registries ? defaultRegistries // extraRegistries
+
+    , rustc ? pkgsBuildHost.rustc
+    , stdenv ? default.stdenv
+    }:
+    let
+      manifest = fromTOML (readFile (src + "/Cargo.toml"));
+
+      selected = flatten (map (glob: globMatchDir glob src) manifest.workspace.members);
+      excluded = map sanitizeRelativePath (manifest.workspace.exclude or []);
+      members = subtractLists excluded selected;
+
+      localSrcInfos = listToAttrs
+        (map (relativePath:
+          let
+            memberRoot = src + ("/" + relativePath);
+            memberManifest = fromTOML (readFile (memberRoot + "/Cargo.toml"));
+          in {
+            name = toPkgId memberManifest.package;
+            value = mkPkgInfoFromCargoToml memberManifest memberRoot;
+          }
+        ) members);
+
+    in
+    mkRustPackageSet {
+      lock = fromTOML (readFile (src + "/Cargo.lock"));
+
+      gitSrcInfos = mapAttrs (url: src:
+        mkPkgInfoFromCargoToml (fromTOML (readFile (src + "/Cargo.toml"))) src
+      ) gitSrcs;
+
+      inherit localSrcInfos buildRustCrate profile buildCrateOverrides registries rustc stdenv;
+    };
+
+  mkRustPackageSet =
+    { lock # : <fromTOML>
+    , localSrcInfos # : Attrset PkgInfo
+    , gitSrcInfos # : Attrset PkgInfo
+    , profile # : String
+    , buildCrateOverrides # : Attrset (Attrset _)
+    , buildRustCrate # : Attrset -> Derivation
+    , registries # : Attrset Registry
+
+    # FIXME: Cross compilation.
+    , rustc
+    , stdenv
+    }:
+    let
 
       getPkgInfo = { source ? null, name, version, ... }@args: let
         m = match "(registry|git)\\+([^#]*).*" source;
@@ -44,50 +111,31 @@ rec {
       in
         # Local crates have no `source`.
         if source == null then
-          if name == rootInfo.name && version == rootInfo.version then
-            rootInfo
-          else
-            workspacePkgInfos.${toPkgId args}
-              or (throw "Local crate is outside the workspace: ${toPkgId args}")
+          localSrcInfos.${toPkgId args}
+            or (throw "Local crate is outside the workspace: ${toPkgId args}")
+          // { isLocalPkg = true; }
         else if m == null then
           throw "Invalid source: ${source}"
         else if kind == "registry" then
           getPkgInfoFromIndex
             (registries.${url} or
-              (throw "Registry `${url}` not found. Please specify it in `extraRegistries`."))
+              (throw "Registry `${url}` not found. Please define it in `extraRegistries`."))
             args
           // { inherit source; } # `source` is for crate id, which is used for overrides.
         else if kind == "git" then
-          let
-            gitSrc = gitSources.${url} or
-              (throw "Git source `${url}` not found. Please specify it in `gitSources`.");
-            gitCargoToml = fromTOML (readFile (gitSrc + "/Cargo.toml"));
-          in
-            mkPkgInfoFromCargoToml gitCargoToml gitSrc
+          gitSrcInfos.${url}
+            or (throw "Git source `${url}` not found. Please define it in `gitSrcs`.")
         else
-          throw "Invalid source schema: ${source}";
+          throw "Invalid source: ${source}";
 
-      pkgSetRaw = resolveDepsFromLock getPkgInfo cargoLock;
+      hostCfgs = platformToCfgs stdenv.hostPlatform;
+
+      pkgSetRaw = resolveDepsFromLock getPkgInfo lock;
       pkgSet = mapAttrs (id: info: info // {
         dependencies = map (dep: dep // {
           targetEnabled = dep.target != null -> evalTargetCfgStr hostCfgs dep.target;
         }) info.dependencies;
       }) pkgSetRaw;
-
-      hostCfgs = platformToCfgs stdenv.hostPlatform;
-
-      rootFeatures = if features != null then features
-        else if rootInfo.features ? default then [ "default" ]
-        else [];
-
-      resolvedBuildFeatures = resolveFeatures {
-        inherit pkgSet rootId rootFeatures;
-        depFilter = dep: dep.targetEnabled && dep.kind == "normal" || dep.kind == "build";
-      };
-      resolvedNormalFeatures = resolveFeatures {
-        inherit pkgSet rootId rootFeatures;
-        depFilter = dep: dep.targetEnabled && dep.kind == "normal";
-      };
 
       selectDeps = pkgs: deps: features: selectKind: onlyLinks:
         map
@@ -107,41 +155,64 @@ rec {
         in
           buildRustCrate args'';
 
-      pkgsBuild = mapAttrs (id: features: let info = pkgSet.${id}; in
-        if features != null then
-          buildRustCrate' info {
-            inherit (info) version src;
-            inherit features profile rustc;
-            pname = info.name;
-            capLints = if info ? isRootPkg then null else "allow";
-            buildDependencies = selectDeps pkgsBuild info.dependencies features "build" false;
-            # Build dependency's normal dependency is still build dependency.
-            dependencies = selectDeps pkgsBuild info.dependencies features "normal" false;
-            linksDependencies = selectDeps pkgsBuild info.dependencies features "normal" true;
-          }
-        else
-          null
-      ) resolvedBuildFeatures;
+      mkPkg = rootId: makeOverridable (
+        { features }:
+        let
+          rootFeatures = if features != null then features
+            else if pkgSet.${rootId}.features ? default then [ "default" ]
+            else [];
 
-      pkgs = mapAttrs (id: features: let info = pkgSet.${id}; in
-        if features != null then
-          buildRustCrate' info {
-            inherit (info) version src links;
-            inherit features profile rustc;
-            pname = info.name;
-            capLints = if info ? isRootPkg then null else "allow";
-            buildDependencies = selectDeps pkgsBuild info.dependencies features "build" false;
-            dependencies = selectDeps pkgs info.dependencies features "normal" false;
-            linksDependencies = selectDeps pkgs info.dependencies features "normal" true;
-          }
-        else
-          null
-      ) resolvedNormalFeatures;
+          resolvedBuildFeatures = resolveFeatures {
+            inherit pkgSet rootId rootFeatures;
+            depFilter = dep: dep.targetEnabled && dep.kind == "normal" || dep.kind == "build";
+          };
+          resolvedNormalFeatures = resolveFeatures {
+            inherit pkgSet rootId rootFeatures;
+            depFilter = dep: dep.targetEnabled && dep.kind == "normal";
+          };
 
-    in
-      warnIf (!dontWarnForWorkspace && cargoToml ? workspace) ''
-        `buildRustPackageFromSrcAndLock` doesn't support workspace. Maybe use `buildRustWorkspaceFromSrcAndLock` instead?
-      '' pkgs.${rootId};
+          pkgsBuild = mapAttrs (id: features: let info = pkgSet.${id}; in
+            if features != null then
+              buildRustCrate' info {
+                inherit (info) version src;
+                inherit features profile rustc;
+                pname = info.name;
+                capLints = if localSrcInfos ? id then null else "allow";
+                buildDependencies = selectDeps pkgsBuild info.dependencies features "build" false;
+                # Build dependency's normal dependency is still build dependency.
+                dependencies = selectDeps pkgsBuild info.dependencies features "normal" false;
+                linksDependencies = selectDeps pkgsBuild info.dependencies features "normal" true;
+              }
+            else
+              null
+          ) resolvedBuildFeatures;
+
+          pkgs = mapAttrs (id: features: let info = pkgSet.${id}; in
+            if features != null then
+              buildRustCrate' info {
+                inherit (info) version src links;
+                inherit features profile rustc;
+                pname = info.name;
+                capLints = if localSrcInfos ? id then null else "allow";
+                buildDependencies = selectDeps pkgsBuild info.dependencies features "build" false;
+                dependencies = selectDeps pkgs info.dependencies features "normal" false;
+                linksDependencies = selectDeps pkgs info.dependencies features "normal" true;
+              }
+            else
+              null
+          ) resolvedNormalFeatures;
+        in
+          pkgs.${rootId}
+      ) {
+        features = null;
+      };
+
+    in {
+      pkgs = mapAttrs' (pkgId: pkgInfo: {
+        name = pkgInfo.name;
+        value = mkPkg pkgId;
+      }) localSrcInfos;
+    };
 
   sanitizeRelativePath = path:
     if hasPrefix "/" path then
@@ -156,77 +227,15 @@ rec {
             '' else true))
           (split ''[\/]'' path));
 
-  # Return a set of derivations keyed by sub-package names.
-  buildRustWorkspaceFromSrcAndLock =
-    args0:
-    { src
-    , cargoTomlFile ? src + "/Cargo.toml"
-    , cargoLockFile ? src + "/Cargo.lock"
-    , ...
-    }@args:
-    let
-      cargoToml = fromTOML (readFile cargoTomlFile);
-
-      selected = flatten (map (glob: globMatchDir glob src) cargoToml.workspace.members);
-      excluded = map sanitizeRelativePath (cargoToml.workspace.exclude or []);
-      members = subtractLists excluded selected;
-
-      workspacePkgInfos =
-        listToAttrs
-          (map (relPath:
-            let
-              memberRoot = src + ("/" + relPath);
-              memberManifest = fromTOML (readFile (memberRoot + "/Cargo.toml"));
-            in {
-              name = toPkgId memberManifest.package;
-              value = mkPkgInfoFromCargoToml memberManifest memberRoot;
-            }
-          )members);
-
-      pathToEntry = path:
-        let
-          src' = src + ("/" + path);
-          cargoTomlFile' = src' + "/Cargo.toml";
-          name = (fromTOML (readFile cargoTomlFile')).package.name;
-          pkg = buildRustPackageFromSrcAndLock args0 (args // {
-            src = src';
-            cargoTomlFile = cargoTomlFile';
-            # Use the common `Cargo.lock`.
-            inherit cargoLockFile;
-            # A Cargo.toml may be both workspace and package. Suppress warnings if any.
-            dontWarnForWorkspace = true;
-            inherit workspacePkgInfos;
-          });
-        in
-      {
-        inherit name;
-        value = pkg;
-      };
-
-      pkgs = listToAttrs (map pathToEntry members);
-
-    in
-      if !(cargoToml ? workspace) then
-        throw "`buildRustWorkspaceFromSrcAndLock` only support workspace, use `buildRustPackageFromSrcAndLock` instead"
-      else if (cargoToml.workspace.members or []) == [] then
-        throw "Workspace auto-detection is not supported yet. Please manually specify `workspace.members`"
-      else
-        pkgs;
-
   build-from-src-dry-tests = { assertEq, pkgs, defaultRegistries, ... }: let
     inherit (builtins) seq toJSON head listToAttrs;
 
-    buildRustPackageFromSrcAndLock' = buildRustPackageFromSrcAndLock {
-      inherit (pkgs) stdenv buildPackages;
+    mkPackage = pkgs.callPackage mkRustPackage {
       inherit defaultRegistries;
       buildRustCrate = args: args;
     };
 
-    build = src: args:
-      let
-        ret = buildRustPackageFromSrcAndLock' ({ inherit src; } // args);
-        # deepSeq but don't decent into derivations.
-      in seq (toJSON ret) ret;
+    build = src: args: mkPackage ({ inherit src; } // args);
 
   in
   {
@@ -257,7 +266,7 @@ rec {
       mkSrc = from: { __toString = _: ../tests/dep-source-kinds/fake-semver; inherit from; };
 
       ret = build ../tests/dep-source-kinds {
-        gitSources = {
+        gitSrcs = {
           "https://github.com/dtolnay/semver?tag=1.0.4" = mkSrc "tag";
           "git://github.com/dtolnay/semver?branch=master" = mkSrc "branch";
           "ssh://git@github.com/dtolnay/semver?rev=ea9ea80c023ba3913b9ab0af1d983f137b4110a5" = mkSrc "rev";

@@ -1,7 +1,7 @@
 { pkgs, self, inputs }:
 let
-  inherit (pkgs.lib) listToAttrs flatten mapAttrsToList mapAttrs;
-  inherit (self.lib.${pkgs.system}) buildRustPackageFromSrcAndLock buildRustWorkspaceFromSrcAndLock;
+  inherit (pkgs.lib) mapAttrs attrNames assertMsg;
+  inherit (self.lib.${pkgs.system}) mkRustPackage mkRustWorkspace;
   inherit (self.packages.${pkgs.system}) noc;
 
   git-semver = builtins.fetchTarball {
@@ -9,7 +9,7 @@ let
     sha256 = "1l2nkfmjgz2zkqw03hmy66q0v1rxvs7fc4kh63ph4lf1924wrmix";
   };
 
-  gitSources = {
+  gitSrcs = {
     "https://github.com/dtolnay/semver?tag=1.0.4" = git-semver;
     "git://github.com/dtolnay/semver?branch=master" = git-semver;
     "ssh://git@github.com/dtolnay/semver?rev=ea9ea80c023ba3913b9ab0af1d983f137b4110a5" = git-semver;
@@ -27,29 +27,36 @@ let
     touch $out
   '';
 
-  mkHelloWorlds = set:
-    let
-      genProfiles = name: f: [
-        { name = name; value = shouldBeHelloWorld (f "release"); }
-        { name = name + "-debug"; value = shouldBeHelloWorld (f "dev"); }
-      ];
-    in
-      listToAttrs
-        (flatten
-          (mapAttrsToList genProfiles set));
-
-  mkPackage = src: profile: buildRustPackageFromSrcAndLock {
-    inherit src profile gitSources;
+  mkHelloWorldTest = src: {
+    release = shouldBeHelloWorld (mkRustPackage {
+      profile = "release";
+      inherit src gitSrcs;
+    });
+    debug = shouldBeHelloWorld (mkRustPackage {
+      profile = "dev";
+      inherit src gitSrcs;
+    });
   };
 
-  mkWorkspace = src: expectMembers: entry: profile:
-    let
-      set = buildRustWorkspaceFromSrcAndLock {
-        inherit src profile;
-      };
-    in
-      assert builtins.attrNames set == expectMembers;
-      set.${entry};
+  mkWorkspaceTest = src: expectMembers: let
+    check = ws:
+      let gotMembers = attrNames ws.pkgs; in
+      assert assertMsg (gotMembers == expectMembers) ''
+        Member assertion failed.
+        expect: ${toString expectMembers}
+        got:    ${toString gotMembers}
+      '';
+      ws;
+  in {
+    release = check (mkRustWorkspace {
+      inherit src;
+      profile = "release";
+    });
+    debug = check (mkRustWorkspace {
+      inherit src;
+      profile = "dev";
+    });
+  };
 
   # Check `noc init`.
   # TODO: Recursive nix?
@@ -66,19 +73,19 @@ let
 
 in
 {
-  _1000-hello-worlds = mkHelloWorlds {
-    custom-lib-name = mkPackage ./custom-lib-name;
-    dep-source-kinds = mkPackage ./dep-source-kinds;
-    dependent = mkPackage ./dependent;
-    libz-link = mkPackage ./libz-link;
-    simple-features = mkPackage ./simple-features;
-    test-openssl = mkPackage ./test-openssl;
-    test-rand = mkPackage ./test-rand;
-    test-rustls = mkPackage ./test-rustls;
-    tokio-app = mkPackage ./tokio-app;
+  _1000-hello-worlds = {
+    custom-lib-name = mkHelloWorldTest ./custom-lib-name;
+    dep-source-kinds = mkHelloWorldTest ./dep-source-kinds;
+    dependent = mkHelloWorldTest ./dependent;
+    libz-link = mkHelloWorldTest ./libz-link;
+    simple-features = mkHelloWorldTest ./simple-features;
+    test-openssl = mkHelloWorldTest ./test-openssl;
+    test-rand = mkHelloWorldTest ./test-rand;
+    test-rustls = mkHelloWorldTest ./test-rustls;
+    tokio-app = mkHelloWorldTest ./tokio-app;
 
-    workspace-virtual = mkWorkspace ./workspace-virtual [ "bar" "foo" ] "foo";
-    workspace-inline = mkWorkspace ./workspace-inline [ "bar" "baz" "foo" ] "foo";
+    workspace-virtual = mkWorkspaceTest ./workspace-virtual [ "bar" "foo" ];
+    workspace-inline = mkWorkspaceTest ./workspace-inline [ "bar" "baz" "foo" ];
   };
 
   _1100-gen-init = mapAttrs mkGenInit {
