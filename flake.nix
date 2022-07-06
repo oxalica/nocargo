@@ -39,10 +39,7 @@
             inherit (packages) toml2json;
             inherit nocargo-lib;
           };
-          mkRustPackage = pkgs.callPackage nocargo-lib.support.mkRustPackage {
-            inherit defaultRegistries buildRustCrate;
-          };
-          mkRustWorkspace = pkgs.callPackage nocargo-lib.support.mkRustWorkspace {
+          mkRustPackageOrWorkspace = pkgs.callPackage nocargo-lib.support.mkRustPackageOrWorkspace {
             inherit defaultRegistries buildRustCrate;
           };
         };
@@ -50,9 +47,9 @@
         packages = rec {
           default = noc;
           toml2json = pkgs.callPackage ./toml2json { };
-          noc = (self.lib.${system}.mkRustPackage {
+          noc = (self.lib.${system}.mkRustPackageOrWorkspace {
             src = ./noc;
-          }).release.bin;
+          }).release.nocargo.bin;
         };
 
         checks = let

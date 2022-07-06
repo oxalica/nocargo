@@ -27,7 +27,7 @@
   outputs = { flake-utils, rust-overlay, nocargo, ... }@inputs:
     flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
-        ws = nocargo.lib.${system}.mkRustPackage {
+        ws = nocargo.lib.${system}.mkRustPackageOrWorkspace {
           src = ./.;
 
           # Use the latest stable release of rustc. Fallback to nixpkgs' rustc if omitted.

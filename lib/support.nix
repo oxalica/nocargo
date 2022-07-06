@@ -77,43 +77,7 @@ rec {
 
     in profiles;
 
-  mkRustPackage =
-    { defaultRegistries, pkgsBuildHost, buildRustCrate, stdenv }@default:
-    { src # : Path
-    , gitSrcs ? {} # : Attrset Path
-    , buildCrateOverrides ? {} # : Attrset (Attrset _)
-    , extraRegistries ? {} # : Attrset Registry
-    , registries ? defaultRegistries // extraRegistries
-
-    , rustc ? pkgsBuildHost.rustc
-    , stdenv ? default.stdenv
-    }:
-    let
-      manifest = fromTOML (readFile (src + "/Cargo.toml"));
-
-      profiles = profilesFromManifest manifest;
-
-      ws = mkRustPackageSet {
-        lock = fromTOML (readFile (src + "/Cargo.lock"));
-
-        localSrcInfos.${toPkgId manifest.package} = mkPkgInfoFromCargoToml manifest src;
-
-        gitSrcInfos = mapAttrs (url: src:
-          mkPkgInfoFromCargoToml (fromTOML (readFile (src + "/Cargo.toml"))) src
-        ) gitSrcs;
-
-        inherit profiles buildRustCrate buildCrateOverrides registries rustc stdenv;
-      };
-
-    in
-    assert assertMsg (!(manifest ? workspace)) ''
-      `mkRustPackage` called on a workspace: ${src}
-      Do you mean to call `mkRustWorkspace`?
-    '';
-    mapAttrs (_: members: head (attrValues members))
-      ws;
-
-  mkRustWorkspace =
+  mkRustPackageOrWorkspace =
     { defaultRegistries, pkgsBuildHost, buildRustCrate, stdenv }@default:
     { src # : Path
     , gitSrcs ? {} # : Attrset Path
@@ -133,7 +97,8 @@ rec {
       excluded = map sanitizeRelativePath (manifest.workspace.exclude or []);
       members = subtractLists excluded selected;
 
-      localSrcInfos = listToAttrs
+      localSrcInfos =
+        listToAttrs
         (map (relativePath:
           let
             memberRoot = src + ("/" + relativePath);
@@ -142,10 +107,9 @@ rec {
             name = toPkgId memberManifest.package;
             value = mkPkgInfoFromCargoToml memberManifest memberRoot;
           }
-        ) members);
+          ) (if manifest ? workspace then members else [ "" ]));
 
-    in
-    mkRustPackageSet {
+    in mkRustPackageSet {
       lock = fromTOML (readFile (src + "/Cargo.lock"));
 
       gitSrcInfos = mapAttrs (url: src:
@@ -155,6 +119,7 @@ rec {
       inherit profiles localSrcInfos buildRustCrate buildCrateOverrides registries rustc stdenv;
     };
 
+  # -> { <profile-name> = { <member-pkg-name> = <drv>; }; }
   mkRustPackageSet =
     { lock # : <fromTOML>
     , localSrcInfos # : Attrset PkgInfo
@@ -297,12 +262,13 @@ rec {
   build-from-src-dry-tests = { assertEq, pkgs, defaultRegistries, ... }: let
     inherit (builtins) seq toJSON head listToAttrs;
 
-    mkPackage = pkgs.callPackage mkRustPackage {
+    mkPackage = pkgs.callPackage mkRustPackageOrWorkspace {
       inherit defaultRegistries;
       buildRustCrate = args: args;
     };
 
-    build = src: args: (mkPackage ({ inherit src; } // args)).dev;
+    build = src: args:
+      head (attrValues (mkPackage ({ inherit src; } // args)).dev);
 
   in
   {

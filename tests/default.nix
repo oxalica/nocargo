@@ -1,7 +1,7 @@
 { pkgs, self, inputs }:
 let
-  inherit (pkgs.lib) mapAttrs attrNames assertMsg;
-  inherit (self.lib.${pkgs.system}) mkRustPackage mkRustWorkspace;
+  inherit (pkgs.lib) mapAttrs attrNames attrValues assertMsg head;
+  inherit (self.lib.${pkgs.system}) mkRustPackageOrWorkspace;
   inherit (self.packages.${pkgs.system}) noc;
 
   git-semver = builtins.fetchTarball {
@@ -28,12 +28,13 @@ let
   '';
 
   mkHelloWorldTest = src:
-    mapAttrs (_: shouldBeHelloWorld) (mkRustPackage {
-      inherit src gitSrcs;
-    });
+    mapAttrs (_: pkgs: shouldBeHelloWorld (head (attrValues pkgs)))
+      (mkRustPackageOrWorkspace {
+        inherit src gitSrcs;
+      });
 
   mkWorkspaceTest = src: expectMembers: let
-    ws = mkRustWorkspace { inherit src; };
+    ws = mkRustPackageOrWorkspace { inherit src; };
     gotMembers = attrNames ws.dev;
   in
     assert assertMsg (gotMembers == expectMembers) ''
