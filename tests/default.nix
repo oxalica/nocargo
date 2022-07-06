@@ -1,6 +1,6 @@
 { pkgs, self, inputs }:
 let
-  inherit (pkgs.lib) mapAttrs attrNames attrValues assertMsg head;
+  inherit (pkgs.lib) mapAttrs attrNames attrValues assertMsg head mapAttrsToList;
   inherit (self.lib.${pkgs.system}) mkRustPackageOrWorkspace;
   inherit (self.packages.${pkgs.system}) noc;
 
@@ -44,17 +44,48 @@ let
     '';
     ws;
 
-  # Check `noc init`.
-  # TODO: Recursive nix?
+  # Recursive Nix setup.
+  # https://github.com/NixOS/nixpkgs/blob/e966ab3965a656efdd40b6ae0d8cec6183972edc/pkgs/top-level/make-tarball.nix#L45-L48
   mkGenInit = name: path:
     pkgs.runCommandNoCC "gen-${name}" {
       nativeBuildInputs = [ noc pkgs.nix ];
+      checkFlags =
+        mapAttrsToList (from: to: "--override-input ${from} ${to}") {
+          inherit (inputs) nixpkgs flake-utils rust-overlay registry-crates-io;
+          nocargo = self;
+          registry-1 = inputs.registry-crates-io;
+          git-1 = git-semver;
+          git-2 = git-semver;
+          git-3 = git-semver;
+          git-4 = git-semver;
+        };
     } ''
-      cp -r ${path} build
-      chmod -R u+w build
-      cd build
+      cp -r ${path} src
+      chmod -R u+w src
+      cd src
+
+      header "generating flake.nix"
       noc init
+      cat flake.nix
       install -D flake.nix $out/flake.nix
+
+      header "checking with 'nix flake check'"
+      export NIX_STATE_DIR=$TMPDIR/nix/var
+      export NIX_PATH=
+      export HOME=$TMPDIR
+      nix-store --init
+      nixFlags=(
+        --offline
+        --option build-users-group ""
+        --option experimental-features "ca-derivations nix-command flakes"
+        --store $TMPDIR/nix/store
+      )
+
+      nix flake check \
+        --no-build \
+        --show-trace \
+        $checkFlags \
+        "''${nixFlags[@]}"
     '';
 
 in
