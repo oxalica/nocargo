@@ -10,14 +10,13 @@
 , linksDependencies ? dependencies
 , buildDependencies ? []
 , features ? []
-, profile ? "release"
+, profile ? {}
 , capLints ? null
 
 , nativeBuildInputs ? []
 , propagatedBuildInputs ? []
 , ...
 }@args:
-assert lib.elem profile [ "dev" "release" ];
 let
   inherit (nocargo-lib.target-cfg) platformToCfgAttrs;
 
@@ -43,7 +42,26 @@ let
 
   builderCommon = ./builder-common.sh;
 
-  profileExt = if profile == "dev" then "-debug" else "";
+  profileExt = if profile.name == "dev" || profile.name == "test" then "-debug" else "";
+
+  convertBool = f: t: x:
+    if x == true then t
+    else if x == false then f
+    else x;
+
+  convertProfile = p: {
+    profileName = p.name or null; # Build profile has no name.
+    optLevel = p.opt-level or null;
+    debugInfo = convertBool 0 2 (p.debug or null);
+    debugAssertions = convertBool "no" "yes" (p.debug-assertions or null);
+    overflowChecks = convertBool "no" "yes" (p.overflow-checks or null);
+    lto = convertBool "no" "yes" (p.lto or null);
+    panic = p.panic or null;
+    codegenUnits = p.codegen-units or null;
+    rpath = convertBool "no" "yes" (p.rpath or null);
+  };
+  profile' = convertProfile profile;
+  buildProfile' = convertProfile (profile.build-override or {});
 
   commonArgs = {
     inherit pname version src;
@@ -53,12 +71,6 @@ let
     sharedLibraryExt = stdenv.hostPlatform.extensions.sharedLibrary;
 
     inherit capLints;
-
-    # FIXME: Support custom profiles in Cargo.toml
-    inherit profile;
-    debugInfo = if profile == "dev" then 2 else null;
-    optLevel = if profile == "dev" then null else 3;
-    debugAssertions = profile == "dev";
 
     RUSTC = "${rustc}/bin/rustc";
   } // removeAttrs args [
@@ -76,14 +88,6 @@ let
     "nativeBuildInputs"
     "propagatedBuildInputs"
   ];
-
-  # Build script doesn't need optimization.
-  buildScriptProfile = {
-    profile = null;
-    debug = null;
-    optLevel = null;
-    debugAssertions = false;
-  };
 
   cargoCfgs = lib.mapAttrs' (key: value: {
     name = "CARGO_CFG_${lib.toUpper key}";
@@ -103,7 +107,7 @@ let
     # So include transitively propagated upstream `-sys` crates' ld dependencies.
     buildInputs = toDevDrvs dependencies;
 
-  } // commonArgs // buildScriptProfile);
+  } // commonArgs // buildProfile');
 
   buildOutDrv = stdenv.mkDerivation ({
     name = "rust_${pname}${profileExt}-build-out-${version}";
@@ -113,7 +117,7 @@ let
 
     HOST = rust.toRustTarget stdenv.buildPlatform;
     TARGET = rust.toRustTarget stdenv.hostPlatform;
-  } // commonArgs // cargoCfgs);
+  } // commonArgs // profile' // cargoCfgs);
 
   libDrv = stdenv.mkDerivation ({
     name = "rust_${pname}${profileExt}-${version}";
@@ -128,7 +132,7 @@ let
 
     dependencies = libDeps;
 
-  } // commonArgs);
+  } // commonArgs // profile');
 
   binDrv = stdenv.mkDerivation ({
     name = "rust_${pname}${profileExt}-bin-${version}";
@@ -143,7 +147,7 @@ let
     buildInputs = toDevDrvs dependencies;
 
     dependencies = libDeps;
-  } // commonArgs);
+  } // commonArgs // profile');
 
 in
   libDrv // {

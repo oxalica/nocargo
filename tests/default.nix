@@ -27,36 +27,21 @@ let
     touch $out
   '';
 
-  mkHelloWorldTest = src: {
-    release = shouldBeHelloWorld (mkRustPackage {
-      profile = "release";
+  mkHelloWorldTest = src:
+    mapAttrs (_: shouldBeHelloWorld) (mkRustPackage {
       inherit src gitSrcs;
     });
-    debug = shouldBeHelloWorld (mkRustPackage {
-      profile = "dev";
-      inherit src gitSrcs;
-    });
-  };
 
   mkWorkspaceTest = src: expectMembers: let
-    check = ws:
-      let gotMembers = attrNames ws.pkgs; in
-      assert assertMsg (gotMembers == expectMembers) ''
-        Member assertion failed.
-        expect: ${toString expectMembers}
-        got:    ${toString gotMembers}
-      '';
-      ws;
-  in {
-    release = check (mkRustWorkspace {
-      inherit src;
-      profile = "release";
-    });
-    debug = check (mkRustWorkspace {
-      inherit src;
-      profile = "dev";
-    });
-  };
+    ws = mkRustWorkspace { inherit src; };
+    gotMembers = attrNames ws.dev;
+  in
+    assert assertMsg (gotMembers == expectMembers) ''
+      Member assertion failed.
+      expect: ${toString expectMembers}
+      got:    ${toString gotMembers}
+    '';
+    ws;
 
   # Check `noc init`.
   # TODO: Recursive nix?

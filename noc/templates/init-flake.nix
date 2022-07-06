@@ -24,40 +24,38 @@
     {%- endfor %}
   };
 
-  outputs = { nixpkgs, flake-utils, rust-overlay, nocargo, ... }@inputs:
+  outputs = { flake-utils, rust-overlay, nocargo, ... }@inputs:
     flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
+        ws = nocargo.lib.${system}.mkRustPackage {
+          src = ./.;
 
-        # Use the latest stable release of rustc. Fallback to nixpkgs' rustc if omitted.
-        rustc = rust-overlay.packages.${system}.rust;
+          # Use the latest stable release of rustc. Fallback to nixpkgs' rustc if omitted.
+          rustc = rust-overlay.packages.${system}.rust;
 
-        {%- if !registries.is_empty() %}
-        # Referenced external registries other than crates.io.
-        extraRegistries = {
-          {%- for (source_id, _) in registries %}
-          "{{ source_id|nix_escape }}" = nocargo.lib.${system}.mkIndex inputs.registry-{{ loop.index }} {};
-          {%- endfor %}
+          {%- if !registries.is_empty() %}
+          # Referenced external registries other than crates.io.
+          extraRegistries = {
+            {%- for (source_id, _) in registries %}
+            "{{ source_id|nix_escape }}" = nocargo.lib.${system}.mkIndex inputs.registry-{{ loop.index }} {};
+            {%- endfor %}
+          };
+          {%- endif %}
+
+          {%- if !git_srcs.is_empty() %}
+          # Referenced external rust packages from git.
+          gitSrcs = {
+            {%- for (source_id, _) in git_srcs %}
+            "{{ source_id|nix_escape }}" = inputs.git-{{ loop.index }};
+            {%- endfor %}
+          };
+          {%- endif %}
         };
-        {%- endif %}
-        {%- if !git_srcs.is_empty() %}
-        # Referenced external rust packages from git.
-        gitSrcs = {
-          {%- for (source_id, _) in git_srcs %}
-          "{{ source_id|nix_escape }}" = inputs.git-{{ loop.index }};
-          {%- endfor %}
-        };
-        {%- endif %}
-
       in rec {
         packages = {
-          default = packages.{{ main_pkg_name|ident_or_str }}{% if has_binary %}.bin{% endif %};
-          {{ main_pkg_name|ident_or_str }} = nocargo.lib.${system}.mkRustPackage {
-            src = ./.;
-            inherit rustc
-              {%- if !registries.is_empty() %} extraRegistries{% endif %}
-              {%- if !git_srcs.is_empty() %} gitSrcs{% endif %};
-          };
+          default = packages.{{ main_pkg_name|ident_or_str }};
+          {{ main_pkg_name|ident_or_str }} = ws.release.{{ main_pkg_name|ident_or_str }}{% if has_binary %}.bin{% endif %};
+          {{ main_pkg_name|ident_or_str }}-dev = ws.dev.{{ main_pkg_name|ident_or_str }}{% if has_binary %}.bin{% endif %};
         };
       });
 }

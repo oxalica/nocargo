@@ -52,7 +52,7 @@
           toml2json = pkgs.callPackage ./toml2json { };
           noc = (self.lib.${system}.mkRustPackage {
             src = ./noc;
-          }).bin;
+          }).release.bin;
         };
 
         checks = let

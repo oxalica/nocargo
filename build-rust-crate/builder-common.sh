@@ -3,9 +3,6 @@ buildFlagsArray+=(
     --color=always
 )
 
-if [[ -n "${codegenUnits:-}" ]]; then
-    buildFlagsArray+=(-C codegen-units="$codegenUnits")
-fi
 if [[ -n "${optLevel:-}" ]]; then
     buildFlagsArray+=(-C opt-level="$optLevel")
 fi
@@ -13,9 +10,19 @@ if [[ -n "${debugInfo:-}" ]]; then
     buildFlagsArray+=(-C debuginfo="$debugInfo")
 fi
 if [[ -n "${debugAssertions:-}" ]]; then
-    buildFlagsArray+=(-C debug-assertions=yes)
-else
-    buildFlagsArray+=(-C debug-assertions=no)
+    buildFlagsArray+=(-C debug-assertions=$debugAssertions)
+fi
+if [[ -n "${overflowChecks:-}" ]]; then
+    buildFlagsArray+=(-C overflow-checks=$overflowChecks)
+fi
+if [[ -n "${lto:-}" ]]; then
+    buildFlagsArray+=(-C lto=$lto)
+fi
+if [[ -n "${panic:-}" ]]; then
+    buildFlagsArray+=(-C panic=$panic)
+fi
+if [[ -n "${codegenUnits:-}" ]]; then
+    buildFlagsArray+=(-C codegen-units="$codegenUnits")
 fi
 if [[ -n "${capLints:-}" ]]; then
     buildFlagsArray+=(--cap-lints="$capLints")

@@ -2,21 +2,85 @@
 let
   inherit (builtins) fromTOML toJSON match tryEval split;
   inherit (lib)
-    readFile mapAttrs mapAttrs' assertMsg makeOverridable
+    readFile mapAttrs mapAttrs' assertMsg makeOverridable warnIf
     isString hasPrefix
-    filter flatten elem elemAt listToAttrs subtractLists concatStringsSep
-    head attrValues;
+    head filter flatten elem elemAt listToAttrs subtractLists concatStringsSep
+    attrNames attrValues recursiveUpdate optionalAttrs;
   inherit (self.pkg-info) mkPkgInfoFromCargoToml getPkgInfoFromIndex toPkgId;
   inherit (self.resolve) resolveDepsFromLock resolveFeatures;
   inherit (self.target-cfg) platformToCfgs evalTargetCfgStr;
   inherit (self.glob) globMatchDir;
 in
 rec {
+
+  # https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles
+  defaultProfiles = rec {
+    dev = {
+      name = "dev";
+      build-override = defaultBuildProfile;
+      opt-level = 0;
+      debug = true;
+      debug-assertions = true;
+      overflow-checks = true;
+      lto = false;
+      panic = "unwind";
+      codegen-units = 256;
+      rpath = false;
+    };
+    release = {
+      name = "release";
+      build-override = defaultBuildProfile;
+      opt-level = 3;
+      debug = false;
+      debug-assertions = false;
+      overflow-checks = false;
+      lto = false;
+      panic = "unwind";
+      codegen-units = 16;
+      rpath = false;
+    };
+    test = dev // { name = "test"; };
+    bench = release // { name = "bench"; };
+  };
+
+  defaultBuildProfile = {
+    opt-level = 0;
+    codegen-units = 256;
+  };
+
+  profilesFromManifest = manifest:
+    let
+      knownFields = [
+        "name"
+        "inherits"
+        # "package" # Unsupported yet.
+        "build-override"
+
+        "opt-level"
+        "debug"
+        # split-debug-info # Unsupported.
+        "strip"
+        "debug-assertions"
+        "overflow-checks"
+        "lto"
+        "panic"
+        # incremental # Unsupported.
+        "codegen-units"
+        "rpath"
+      ];
+
+      profiles = mapAttrs (name: p:
+        let unknown = removeAttrs p knownFields; in
+        warnIf (unknown != {}) "Unsupported fields of profile ${name}: ${toString (attrNames unknown)}"
+          (optionalAttrs (p ? inherits) profiles.${p.inherits} // p)
+      ) (recursiveUpdate defaultProfiles (manifest.profile or {}));
+
+    in profiles;
+
   mkRustPackage =
     { defaultRegistries, pkgsBuildHost, buildRustCrate, stdenv }@default:
     { src # : Path
     , gitSrcs ? {} # : Attrset Path
-    , profile ? "release" # : String
     , buildCrateOverrides ? {} # : Attrset (Attrset _)
     , extraRegistries ? {} # : Attrset Registry
     , registries ? defaultRegistries // extraRegistries
@@ -26,6 +90,8 @@ rec {
     }:
     let
       manifest = fromTOML (readFile (src + "/Cargo.toml"));
+
+      profiles = profilesFromManifest manifest;
 
       ws = mkRustPackageSet {
         lock = fromTOML (readFile (src + "/Cargo.lock"));
@@ -36,23 +102,21 @@ rec {
           mkPkgInfoFromCargoToml (fromTOML (readFile (src + "/Cargo.toml"))) src
         ) gitSrcs;
 
-        inherit buildRustCrate profile buildCrateOverrides registries rustc stdenv;
+        inherit profiles buildRustCrate buildCrateOverrides registries rustc stdenv;
       };
-
-      mainPkg = head (attrValues ws.pkgs);
 
     in
     assert assertMsg (!(manifest ? workspace)) ''
       `mkRustPackage` called on a workspace: ${src}
       Do you mean to call `mkRustWorkspace`?
     '';
-    mainPkg;
+    mapAttrs (_: members: head (attrValues members))
+      ws;
 
   mkRustWorkspace =
     { defaultRegistries, pkgsBuildHost, buildRustCrate, stdenv }@default:
     { src # : Path
     , gitSrcs ? {} # : Attrset Path
-    , profile ? "release" # : String
     , buildCrateOverrides ? {} # : Attrset (Attrset _)
     , extraRegistries ? {} # : Attrset Registry
     , registries ? defaultRegistries // extraRegistries
@@ -62,6 +126,8 @@ rec {
     }:
     let
       manifest = fromTOML (readFile (src + "/Cargo.toml"));
+
+      profiles = profilesFromManifest manifest;
 
       selected = flatten (map (glob: globMatchDir glob src) manifest.workspace.members);
       excluded = map sanitizeRelativePath (manifest.workspace.exclude or []);
@@ -86,14 +152,14 @@ rec {
         mkPkgInfoFromCargoToml (fromTOML (readFile (src + "/Cargo.toml"))) src
       ) gitSrcs;
 
-      inherit localSrcInfos buildRustCrate profile buildCrateOverrides registries rustc stdenv;
+      inherit profiles localSrcInfos buildRustCrate buildCrateOverrides registries rustc stdenv;
     };
 
   mkRustPackageSet =
     { lock # : <fromTOML>
     , localSrcInfos # : Attrset PkgInfo
     , gitSrcInfos # : Attrset PkgInfo
-    , profile # : String
+    , profiles # : Attrset Profile
     , buildCrateOverrides # : Attrset (Attrset _)
     , buildRustCrate # : Attrset -> Derivation
     , registries # : Attrset Registry
@@ -155,7 +221,7 @@ rec {
         in
           buildRustCrate args'';
 
-      mkPkg = rootId: makeOverridable (
+      mkPkg = profile: rootId: makeOverridable (
         { features }:
         let
           rootFeatures = if features != null then features
@@ -207,12 +273,13 @@ rec {
         features = null;
       };
 
-    in {
-      pkgs = mapAttrs' (pkgId: pkgInfo: {
-        name = pkgInfo.name;
-        value = mkPkg pkgId;
-      }) localSrcInfos;
-    };
+    in
+      mapAttrs (_: profile:
+        mapAttrs' (pkgId: pkgInfo: {
+          name = pkgInfo.name;
+          value = mkPkg profile pkgId;
+        }) localSrcInfos
+      ) profiles;
 
   sanitizeRelativePath = path:
     if hasPrefix "/" path then
@@ -235,7 +302,7 @@ rec {
       buildRustCrate = args: args;
     };
 
-    build = src: args: mkPackage ({ inherit src; } // args);
+    build = src: args: (mkPackage ({ inherit src; } // args)).dev;
 
   in
   {

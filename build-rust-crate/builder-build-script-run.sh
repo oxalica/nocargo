@@ -37,11 +37,7 @@ configurePhase() {
         export DEBUG=false
     fi
 
-    if [[ "$profile" == release ]]; then
-        export PROFILE=release
-    else
-        export PROFILE=debug
-    fi
+    export PROFILE="$profileName"
 
     export RUSTC_BACKTRACE=1 # Make debugging easier.
 
