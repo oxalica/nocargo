@@ -55,6 +55,10 @@
           noc = (self.lib.${system}.mkRustPackageOrWorkspace {
             src = ./noc;
           }).release.nocargo.bin;
+
+          cache-dev = (self.lib.${system}.mkRustPackageOrWorkspace {
+            src = ./cache;
+          }).dev.cache;
         };
 
         checks = let
