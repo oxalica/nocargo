@@ -87,7 +87,7 @@ in
     test-rustls = ./test-rustls;
     tokio-app = ./tokio-app;
 
-    # workspace-virtual = ./workspace-virtual;
-    # workspace-inline = ./workspace-inline;
+    workspace-virtual = ./workspace-virtual;
+    workspace-inline = ./workspace-inline;
   };
 }

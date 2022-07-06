@@ -1,5 +1,9 @@
 {
-  description = "Rust package {{ main_pkg_name|nix_escape }}";
+  {%- if let Some((pkg_name, _)) = main_pkg %}
+  description = "Rust package {{ pkg_name|nix_escape }}";
+  {%- else %}
+  description = "My Rust packages";
+  {%- endif %}
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
@@ -24,7 +28,7 @@
     {%- endfor %}
   };
 
-  outputs = { flake-utils, rust-overlay, nocargo, ... }@inputs:
+  outputs = { nixpkgs, flake-utils, rust-overlay, nocargo, ... }@inputs:
     flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
         ws = nocargo.lib.${system}.mkRustPackageOrWorkspace {
@@ -52,10 +56,17 @@
           {%- endif %}
         };
       in rec {
+        {%- if is_workspace %}
+        packages = {% if let Some((pkg_name, prod)) = main_pkg %}{
+          default = packages.{{ pkg_name|ident_or_str }}{% if prod.binary %}.bin{% endif %};
+        } // {% endif %}ws.release
+          // nixpkgs.lib.mapAttrs' (name: value: { name = "${name}-dev"; inherit value; }) ws.dev;
+        {%- else if let Some((pkg_name, prod)) = main_pkg %}
         packages = {
-          default = packages.{{ main_pkg_name|ident_or_str }};
-          {{ main_pkg_name|ident_or_str }} = ws.release.{{ main_pkg_name|ident_or_str }}{% if has_binary %}.bin{% endif %};
-          {{ main_pkg_name|ident_or_str }}-dev = ws.dev.{{ main_pkg_name|ident_or_str }}{% if has_binary %}.bin{% endif %};
+          default = packages.{{ pkg_name|ident_or_str }};
+          {{ pkg_name|ident_or_str }} = ws.release.{{ pkg_name|ident_or_str }}{% if prod.binary %}.bin{% endif %};
+          {{ pkg_name|ident_or_str }}-dev = ws.dev.{{ pkg_name|ident_or_str }}{% if prod.binary %}.bin{% endif %};
         };
+        {%- endif %}
       });
 }
