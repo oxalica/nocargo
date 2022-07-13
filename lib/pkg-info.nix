@@ -15,7 +15,7 @@ rec {
   mkIndex = fetchurl: path: overrides: let
     # TODO: We currently only support legacy format used by crates.io-index.
     # https://github.com/rust-lang/cargo/blob/2f3df16921deb34a92700f4d5a7ecfb424739558/src/cargo/sources/registry/mod.rs#L230-L244
-    downloadEndpoint = (fromJSON (readFile "${path}/config.json")).dl;
+    downloadEndpoint = (fromJSON (readFile (path + "/config.json"))).dl;
     mkDownloadUrl =
       assert match ".*\\{.*" downloadEndpoint == null;
       { name, version, ... }: "${downloadEndpoint}/${name}/${version}/download";
@@ -31,8 +31,8 @@ rec {
     go = path:
       mapAttrs (k: v:
         if v == "directory"
-          then go "${path}/${k}"
-          else mkPkgInfoSet mkSrc k (readFile "${path}/${k}") (overrides.${k} or null)
+          then go (path + "/${k}")
+          else mkPkgInfoSet mkSrc k (readFile (path + "/${k}")) (overrides.${k} or null)
       ) (removeAttrs (readDir path) [ "config.json" ]);
   in
     go path // { __registry_index = true; };
