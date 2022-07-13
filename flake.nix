@@ -36,6 +36,10 @@
             });
         };
       in rec {
+        apps.default = {
+          type = "app";
+          program = "${packages.noc}/bin/noc";
+        };
 
         # Is there a better place? `naersk` places builders under `lib.${system}`.
         lib = rec {
