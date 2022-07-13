@@ -195,7 +195,7 @@ rec {
 
     "2match-dir" = {
       compound1 = assertEq (globMatchDir "*-*.nix" ./.) [ "pkg-info.nix" "target-cfg.nix" ];
-      compound2 = assertEq (globMatchDir "./dependent/../**/tokio-[!wtf][opq]?" ../tests) [ "tokio-app" ];
+      compound2 = assertEq (globMatchDir "./features/../**/tokio-[!wtf][opq]?" ../tests) [ "tokio-app" ];
     };
   };
 }

@@ -216,23 +216,11 @@ rec {
 
       expected = {
         name = "tokio-app";
-        version = "0.1.0";
+        version = "0.0.0";
         features = { };
         src = "<src>";
         links = null;
         dependencies = [
-          {
-            name = "liboldc";
-            rename = "liboldc";
-            package = "libc";
-            default_features = true;
-            features = [ ];
-            kind = "normal";
-            optional = false;
-            req = "0.1";
-            target = null;
-            source = null;
-          }
           {
             name = "tokio";
             package = "tokio";
@@ -240,7 +228,7 @@ rec {
             features = [ "rt-multi-thread" "macros" "time" ];
             kind = "normal";
             optional = false;
-            req = "1.6.1";
+            req = "1";
             target = null;
             source = "registry+https://github.com/rust-lang/crates.io-index";
           }

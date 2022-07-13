@@ -272,21 +272,21 @@ rec {
 
   in
   {
-    simple-features = let ret = build ../tests/simple-features {}; in
-      assertEq ret.features [ "a" "default" ];
+    features = let ret = build ../tests/features {}; in
+      assertEq ret.features [ "a" "default" "semver" ]; # FIXME
 
-    dependent = let
-      ret = build ../tests/dependent {};
+    dependency-features = let
+      ret = build ../tests/features { };
       semver = (head ret.dependencies).drv;
       serde = (head semver.dependencies).drv;
     in assertEq
-      { inherit (semver) pname features; serde = serde.pname; }
-      { pname = "semver"; features = [ "default" "serde" "std" ]; serde = "serde"; };
+      [ semver.features serde.features ]
+      [ [ "default" "serde" "std" ] [ /* Don't trigger default features */ ] ];
 
-    dependent-overrided = let
-      ret = build ../tests/dependent {
+    dependency-overrided = let
+      ret = build ../tests/features {
         buildCrateOverrides."" = old: { a = "b"; };
-        buildCrateOverrides."serde 1.0.126 (registry+https://github.com/rust-lang/crates.io-index)" = old: {
+        buildCrateOverrides."serde 1.0.139 (registry+https://github.com/rust-lang/crates.io-index)" = old: {
           buildInputs = [ "some-inputs" ];
         };
       };
@@ -295,16 +295,22 @@ rec {
     in
       assertEq serde.buildInputs [ "some-inputs" ];
 
-    dep-source-kinds = let
-      mkSrc = from: { __toString = _: ../tests/dep-source-kinds/fake-semver; inherit from; };
+    dependency-kinds = let
+      mkSrc = from: { __toString = _: ../tests/fake-semver; inherit from; };
+      gitSrcs = {
+        "https://github.com/dtolnay/semver?tag=1.0.0" = mkSrc "tag";
+        "http://github.com/dtolnay/semver" = mkSrc "branch"; # v1, v2
+        "http://github.com/dtolnay/semver?branch=master" = mkSrc "branch"; # v3
+        "ssh://git@github.com/dtolnay/semver?rev=a2ce5777dcd455246e4650e36dde8e2e96fcb3fd" = mkSrc "rev";
+        "ssh://git@github.com/dtolnay/semver" = mkSrc "nothing";
+      };
+      extraRegistries = {
+        "https://www.github.com/rust-lang/crates.io-index" =
+          head (attrValues defaultRegistries);
+      };
 
-      ret = build ../tests/dep-source-kinds {
-        gitSrcs = {
-          "https://github.com/dtolnay/semver?tag=1.0.4" = mkSrc "tag";
-          "git://github.com/dtolnay/semver?branch=master" = mkSrc "branch";
-          "ssh://git@github.com/dtolnay/semver?rev=ea9ea80c023ba3913b9ab0af1d983f137b4110a5" = mkSrc "rev";
-          "ssh://git@github.com/dtolnay/semver" = mkSrc "nothing";
-        };
+      ret = build ../tests/dependency-v3 {
+        inherit gitSrcs extraRegistries;
       };
       ret' = listToAttrs
         (map (dep: {
@@ -313,23 +319,22 @@ rec {
         }) ret.dependencies);
     in
       assertEq ret' {
-        bitflags = "crate-bitflags-1.3.2.tar.gz";
-        cfg_if2 = "crate-cfg-if-1.0.0.tar.gz";
-        semver1 = "tag";
-        semver2 = "branch";
-        semver3 = "rev";
-        semver4 = "nothing";
+        cratesio = "crate-semver-1.0.12.tar.gz";
+        git_branch = "branch";
+        git_head = "nothing";
+        git_rev = "rev";
+        git_tag = "tag";
+        registry_index = "crate-semver-1.0.12.tar.gz";
       };
 
-    openssl = let
-      ret = build ../tests/test-openssl {};
-      openssl = (head ret.dependencies).drv;
-      openssl-sys = (head openssl.linksDependencies).drv;
+    libz-propagated = let
+      ret = build ../tests/libz-dynamic {};
+      libz = (head ret.dependencies).drv;
     in
-      assertEq (head openssl-sys.propagatedBuildInputs).pname "openssl";
+      assertEq (head libz.propagatedBuildInputs).pname "zlib";
 
     libz-link = let
-      ret = build ../tests/libz-link {};
+      ret = build ../tests/libz-dynamic {};
       libz = (head ret.dependencies).drv;
       libz' = (head ret.linksDependencies).drv;
     in

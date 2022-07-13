@@ -1,19 +1,30 @@
-{ pkgs, self, inputs }:
+{ pkgs, self, inputs, defaultRegistries }:
 let
   inherit (pkgs.lib) mapAttrs attrNames attrValues assertMsg head mapAttrsToList;
-  inherit (self.lib.${pkgs.system}) mkRustPackageOrWorkspace;
+  inherit (self.lib.${pkgs.system}) mkRustPackageOrWorkspace mkIndex;
   inherit (self.packages.${pkgs.system}) noc;
 
-  git-semver = builtins.fetchTarball {
+  git-semver-1-0-0 = builtins.fetchTarball {
+    url = "https://github.com/dtolnay/semver/archive/1.0.0/master.tar.gz";
+    sha256 = "0s7gwj5l0h98spgm7vyxak9z3hgrachwxbnf1fpry5diz939x8n4";
+  };
+
+  git-semver-1-0-12 = builtins.fetchTarball {
     url = "https://github.com/dtolnay/semver/archive/1.0.4/master.tar.gz";
     sha256 = "1l2nkfmjgz2zkqw03hmy66q0v1rxvs7fc4kh63ph4lf1924wrmix";
   };
 
   gitSrcs = {
-    "https://github.com/dtolnay/semver?tag=1.0.4" = git-semver;
-    "git://github.com/dtolnay/semver?branch=master" = git-semver;
-    "ssh://git@github.com/dtolnay/semver?rev=ea9ea80c023ba3913b9ab0af1d983f137b4110a5" = git-semver;
-    "ssh://git@github.com/dtolnay/semver" = git-semver;
+    "https://github.com/dtolnay/semver?tag=1.0.0" = git-semver-1-0-0;
+    "http://github.com/dtolnay/semver" = git-semver-1-0-12; # v1, v2
+    "http://github.com/dtolnay/semver?branch=master" = git-semver-1-0-12; # v3
+    "ssh://git@github.com/dtolnay/semver?rev=a2ce5777dcd455246e4650e36dde8e2e96fcb3fd" = git-semver-1-0-0;
+    "ssh://git@github.com/dtolnay/semver" = git-semver-1-0-12;
+  };
+
+  extraRegistries = {
+    "https://www.github.com/rust-lang/crates.io-index" =
+      head (attrValues defaultRegistries);
   };
 
   shouldBeHelloWorld = drv: pkgs.runCommand "${drv.name}" {} ''
@@ -30,7 +41,7 @@ let
   mkHelloWorldTest = src:
     mapAttrs (_: pkgs: shouldBeHelloWorld (head (attrValues pkgs)))
       (mkRustPackageOrWorkspace {
-        inherit src gitSrcs;
+        inherit src gitSrcs extraRegistries;
       });
 
   mkWorkspaceTest = src: expectMembers: let
@@ -54,10 +65,10 @@ let
           inherit (inputs) nixpkgs flake-utils rust-overlay registry-crates-io;
           nocargo = self;
           registry-1 = inputs.registry-crates-io;
-          git-1 = git-semver;
-          git-2 = git-semver;
-          git-3 = git-semver;
-          git-4 = git-semver;
+          git-1 = git-semver-1-0-0;
+          git-2 = git-semver-1-0-0;
+          git-3 = git-semver-1-0-0;
+          git-4 = git-semver-1-0-0;
         };
     } ''
       cp -r ${path} src
@@ -90,33 +101,27 @@ let
 
 in
 {
-  _1000-hello-worlds = {
-    custom-lib-name = mkHelloWorldTest ./custom-lib-name;
-    dep-source-kinds = mkHelloWorldTest ./dep-source-kinds;
-    dependent = mkHelloWorldTest ./dependent;
-    dependent-v1 = mkHelloWorldTest ./dependent-v1;
-    dependent-v2 = mkHelloWorldTest ./dependent-v2;
-    libz-link = mkHelloWorldTest ./libz-link;
-    simple-features = mkHelloWorldTest ./simple-features;
-    test-openssl = mkHelloWorldTest ./test-openssl;
-    test-rand = mkHelloWorldTest ./test-rand;
-    test-rustls = mkHelloWorldTest ./test-rustls;
-    tokio-app = mkHelloWorldTest ./tokio-app;
-
+  _1000-hello-worlds = mapAttrs (name: path: mkHelloWorldTest path) {
+    custom-lib-name = ./custom-lib-name;
+    # FIXME
+    # dependency-v1 = ./dependency-v1;
+    # dependency-v2 = ./dependency-v2;
+    dependency-v3 = ./dependency-v3;
+    features = ./features;
+    libz-dynamic = ./libz-dynamic;
+    libz-static = ./libz-static;
+    tokio-app = ./tokio-app;
+  } // {
     workspace-virtual = mkWorkspaceTest ./workspace-virtual [ "bar" "foo" ];
     workspace-inline = mkWorkspaceTest ./workspace-inline [ "bar" "baz" "foo" ];
   };
 
   _1100-gen-init = mapAttrs mkGenInit {
-    custom-lib-name = ./custom-lib-name;
-    dep-source-kinds = ./dep-source-kinds;
-    dependent = ./dependent;
-    libz-link = ./libz-link;
-    simple-features = ./simple-features;
-    test-openssl = ./test-openssl;
-    test-rand = ./test-rand;
-    test-rustls = ./test-rustls;
-    tokio-app = ./tokio-app;
+    # FIXME
+    # dependency-v1 = ./dependency-v1;
+    # dependency-v2 = ./dependency-v2;
+    dependency-v3 = ./dependency-v3;
+    features = ./features;
 
     workspace-virtual = ./workspace-virtual;
     workspace-inline = ./workspace-inline;

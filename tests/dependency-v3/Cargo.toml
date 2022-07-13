@@ -1,0 +1,12 @@
+[package]
+name = "dependencies"
+version = "0.0.0"
+edition = "2018"
+
+[dependencies]
+cratesio = { package = "semver", version = "1" }
+registry-index = { package = "semver", version = "1", registry-index = "https://www.github.com/rust-lang/crates.io-index" }
+git-tag = { package = "semver", git = "https://github.com/dtolnay/semver", tag = "1.0.0" }
+git-branch = { package = "semver", git = "http://github.com/dtolnay/semver", branch = "master" }
+git-rev = { package = "semver", git = "ssh://git@github.com/dtolnay/semver", rev = "a2ce5777dcd455246e4650e36dde8e2e96fcb3fd" }
+git-head = { package = "semver", git = "ssh://git@github.com/dtolnay/semver" }

@@ -1,6 +1,0 @@
-[package]
-name = "dependent"
-version = "0.1.0"
-
-[dependencies]
-semver = { version = "1", features = [ "serde" ] }

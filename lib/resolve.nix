@@ -334,7 +334,7 @@ in rec {
     };
   };
 
-  resolve-deps-tests = { assertEq, assertEqFile, defaultRegistries, pkgs, ... }: {
+  resolve-deps-tests = { assertEq, defaultRegistries, ... }: {
     simple = let
       index = {
         libc."0.1.12" = { name = "libc"; version = "0.1.12"; dependencies = []; };
@@ -418,29 +418,6 @@ in rec {
       resolved = resolveDepsFromLock getPkgInfo lock;
     in
       assertEq resolved expected;
-
-    tokio-app = let
-      lock = fromTOML (readFile ../tests/tokio-app/Cargo.lock);
-
-      registry-crates-io = defaultRegistries."https://github.com/rust-lang/crates.io-index";
-
-      cargoToml = fromTOML (readFile ../tests/tokio-app/Cargo.toml);
-      info = mkPkgInfoFromCargoToml cargoToml "<src>";
-      getPkgInfo = args:
-        if args ? source then
-          getPkgInfoFromIndex registry-crates-io args
-        else
-          assert args.name == "tokio-app";
-          info;
-
-      resolved = resolveDepsFromLock getPkgInfo lock;
-      resolved' = mapAttrs (id: { dependencies, ... }@args:
-        args // {
-          dependencies = filter (dep: !dep.optional && dep.kind != "dev") dependencies;
-        }
-      ) resolved;
-    in
-      assertEqFile resolved' ../tests/tokio-app/Cargo.lock.resolved.json; # Normalize.
 
     workspace-virtual = let
       lock = fromTOML (readFile ../tests/workspace-virtual/Cargo.lock);

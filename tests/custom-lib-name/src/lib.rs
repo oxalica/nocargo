@@ -1,1 +1,3 @@
-pub fn custom() -> i32 { 42 }
+pub fn custom() -> i32 {
+    42
+}

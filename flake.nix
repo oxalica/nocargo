@@ -99,27 +99,6 @@
                     fi
                   '';
             };
-
-            assertEqFile = got: expectFile: {
-              __assertion = true;
-              fn = name:
-                let
-                  expect = readFile expectFile;
-                  got' = toJSON got;
-                  expect' = toJSON (fromJSON expect);
-                in if got' == expect' then
-                  okDrv
-                else
-                  pkgs.runCommandNoCC name {
-                    nativeBuildInputs = [ pkgs.jq ];
-                    got = got';
-                  } ''
-                    echo "*** Assert failed for file: ${toString expectFile}"
-                    echo "$got"
-                    echo "*** End of file"
-                    exit 1
-                  '';
-            };
           };
 
           tests = with nocargo-lib; {
@@ -137,7 +116,9 @@
 
             _0200-resolve-deps = resolve.resolve-deps-tests;
             _0201-build-from-src-dry = support.build-from-src-dry-tests;
-          } // import ./tests { inherit pkgs self inputs; };
+          } // import ./tests {
+            inherit pkgs self inputs defaultRegistries;
+          };
 
           flattenTests = prefix: v:
             if isDerivation v then {

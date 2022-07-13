@@ -1,0 +1,7 @@
+# This crate is for tests in `support.nix` and will not be really built.
+[package]
+name = "semver"
+version = "1.0.0"
+edition = "2018"
+
+[dependencies]

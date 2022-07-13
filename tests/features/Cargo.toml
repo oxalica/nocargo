@@ -1,0 +1,12 @@
+[package]
+name = "simple-features"
+version = "0.0.0"
+edition = "2018"
+
+[dependencies]
+semver = { version = "1.0.12", optional = true }
+
+[features]
+default = [ "a" ]
+a = ["default", "semver/serde"]
+b = []
