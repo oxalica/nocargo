@@ -150,7 +150,7 @@ rec {
     };
 
   # Build a simplified crate into from a parsed Cargo.toml.
-  mkPkgInfoFromCargoToml = { package, features ? {}, target ? {}, ... }@args: src: let
+  mkPkgInfoFromCargoToml = { lockVersion ? 3, package, features ? {}, target ? {}, ... }@args: src: let
     transDeps = target: kind:
       mapAttrsToList (name: v:
         {
@@ -172,7 +172,8 @@ rec {
             else if v ? registry-index then
               "registry+${v.registry-index}"
             else if v ? git then
-              if v ? branch then
+              # For v1 and v2, git-branch URLs are encoded as "git+url" with no query parameters.
+              if v ? branch && lockVersion >= 3 then
                 "git+${v.git}?branch=${v.branch}"
               else if v ? tag then
                 "git+${v.git}?tag=${v.tag}"

@@ -103,9 +103,8 @@ in
 {
   _1000-hello-worlds = mapAttrs (name: path: mkHelloWorldTest path) {
     custom-lib-name = ./custom-lib-name;
-    # FIXME
-    # dependency-v1 = ./dependency-v1;
-    # dependency-v2 = ./dependency-v2;
+    dependency-v1 = ./dependency-v1;
+    dependency-v2 = ./dependency-v2;
     dependency-v3 = ./dependency-v3;
     features = ./features;
     libz-dynamic = ./libz-dynamic;
@@ -117,9 +116,8 @@ in
   };
 
   _1100-gen-init = mapAttrs mkGenInit {
-    # FIXME
-    # dependency-v1 = ./dependency-v1;
-    # dependency-v2 = ./dependency-v2;
+    dependency-v1 = ./dependency-v1;
+    dependency-v2 = ./dependency-v2;
     dependency-v3 = ./dependency-v3;
     features = ./features;
 

@@ -97,12 +97,16 @@ rec {
       excluded = map sanitizeRelativePath (manifest.workspace.exclude or []);
       members = subtractLists excluded selected;
 
+      lock = fromTOML (readFile (src + "/Cargo.lock"));
+      # We don't distinguish between v1 and v2. But v3 is different from both.
+      lockVersionSet = { lockVersion = lock.version or 2; };
+
       localSrcInfos =
         listToAttrs
         (map (relativePath:
           let
             memberRoot = src + ("/" + relativePath);
-            memberManifest = fromTOML (readFile (memberRoot + "/Cargo.toml"));
+            memberManifest = fromTOML (readFile (memberRoot + "/Cargo.toml")) // lockVersionSet;
           in {
             name = toPkgId memberManifest.package;
             value = mkPkgInfoFromCargoToml memberManifest memberRoot;
@@ -110,13 +114,11 @@ rec {
           ) (if manifest ? workspace then members else [ "" ]));
 
     in mkRustPackageSet {
-      lock = fromTOML (readFile (src + "/Cargo.lock"));
-
       gitSrcInfos = mapAttrs (url: src:
-        mkPkgInfoFromCargoToml (fromTOML (readFile (src + "/Cargo.toml"))) src
+        mkPkgInfoFromCargoToml (fromTOML (readFile (src + "/Cargo.toml")) // lockVersionSet) src
       ) gitSrcs;
 
-      inherit profiles localSrcInfos buildRustCrate buildCrateOverrides registries rustc stdenv;
+      inherit lock profiles localSrcInfos buildRustCrate buildCrateOverrides registries rustc stdenv;
     };
 
   # -> { <profile-name> = { <member-pkg-name> = <drv>; }; }
