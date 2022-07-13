@@ -180,8 +180,14 @@ rec {
                 "git+${v.git}?rev=${v.rev}"
               else
                 "git+${v.git}"
+            else if v ? path then
+              # Local crates are mark with `null` source.
+              null
             else
-              null;
+              # Default to use crates.io registry.
+              # N.B. This is necessary and must not be `null`, or it will be indinstinguishable
+              # with local crates or crates from other registries.
+              "registry+https://github.com/rust-lang/crates.io-index";
 
         # See `sanitizeDep`
         } // optionalAttrs (v.package or null != null) {
@@ -236,7 +242,7 @@ rec {
             optional = false;
             req = "1.6.1";
             target = null;
-            source = null;
+            source = "registry+https://github.com/rust-lang/crates.io-index";
           }
         ];
       };
