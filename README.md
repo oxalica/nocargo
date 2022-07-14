@@ -110,15 +110,33 @@ A template `flake.nix` with common setup are below. It's mostly the same as the 
           # If you use registries other than crates.io, they should be imported in flake inputs,
           # and specified here. Note that registry should be initialized via `mkIndex`,
           # with an optional override.
-          # extraRegistries = {
-          #   "https://example-registry.org" = nocargo.lib.${system}.mkIndex inputs.example-registry {};
-          # };
+          extraRegistries = {
+            # "https://example-registry.org" = nocargo.lib.${system}.mkIndex inputs.example-registry {};
+          };
 
           # If you use crates from git URLs, they should be imported in flake inputs,
           # and specified here.
-          # gitSrcs = {
-          #   "https://github.com/some/repo" = inputs.example-git-source;
-          # };
+          gitSrcs = {
+            # "https://github.com/some/repo" = inputs.example-git-source;
+          };
+
+          # If some crates in your dependency closure require packages from nixpkgs.
+          # You can override the argument for `stdenv.mkDerivation` to add them.
+          #
+          # Popular `-sys` crates overrides are maintained in `./crates-io-override/default.nix`
+          # to make them work out-of-box. PRs are welcome.
+          buildCrateOverrides = with nixpkgs.legacyPackages.${system}; {
+            # Use package id format `pkgname version (registry)` to reference a direct or transitive dependency.
+            "zstd-sys 2.0.1+zstd.1.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = old: {
+              nativeBuildInputs = [ pkg-config ];
+              propagatedBuildInputs = [ zstd ];
+            };
+
+            # Use package name to reference local crates.
+            "mypkg1" = old: {
+              nativeBuildInputs = [ git ];
+            };
+          };
 
           # Use the latest stable release of rustc. Fallback to nixpkgs' rustc if omitted.
           rustc = rust-overlay.packages.${system}.rust;
