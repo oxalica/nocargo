@@ -10,7 +10,8 @@ rec {
     if source != null then
       "${name} ${version} (${source})"
     else
-      "${name} ${version} (local)";
+      # Local crates must be collide names. Simply use the name to make overriding easier.
+      name;
 
   mkIndex = fetchurl: path: overrides: let
     # TODO: We currently only support legacy format used by crates.io-index.

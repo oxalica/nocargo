@@ -383,7 +383,7 @@ in rec {
           version = "0.2.95";
           dependencies = [ ];
         };
-        "testt 0.1.0 (local)" = {
+        "testt" = {
           name = "testt";
           version = "0.1.0";
           dependencies = [
@@ -439,7 +439,7 @@ in rec {
       resolved = resolveDepsFromLock getCrateInfo lock;
     in
     assertEq resolved {
-      "bar 0.1.0 (local)" = {
+      bar = {
         dependencies = [];
         features = {};
         links = null;
@@ -447,7 +447,7 @@ in rec {
         src = "<src>";
         version = "0.1.0";
       };
-      "foo 0.1.0 (local)" = {
+      foo = {
         dependencies = [ {
           default_features = true;
           features = [];
@@ -456,7 +456,7 @@ in rec {
           optional = false;
           package = "bar";
           req = null;
-          resolved = "bar 0.1.0 (local)";
+          resolved = "bar";
           source = null;
           target = null;
         } ];
