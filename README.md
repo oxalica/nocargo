@@ -25,9 +25,10 @@ Build Rust crates with *Nix Build System*.
   - [x] `[profile]`
   - [x] `[{,dev-,build-}dependencies]`
   - [x] `[features]`
-    - [ ] Overriding API
+    - [x] Overriding API
   - [x] `[target.<cfg>.dependencies]`
-  - [ ] `[patch]`
+  - [x] `[patch]`
+        Automatically supported. Since the dependency graph `Cargo.lock` currently relies on `cargo`'s generation.
   - [ ] Cross-compilation.
         FIXME: Buggy with proc-macros.
 - `noc` helper
@@ -146,7 +147,16 @@ A template `flake.nix` with common setup are below. It's mostly the same as the 
         # with `dev` packages postfixed by `-dev`.
         # You can export different packages of your choice.
         packages = ws.release
-          // nixpkgs.lib.mapAttrs' (name: value: { name = "${name}-dev"; inherit value; }) ws.dev;
+          // nixpkgs.lib.mapAttrs' (name: value: { name = "${name}-dev"; inherit value; }) ws.dev
+          // {
+            # The "default" features are turned on by default.
+            # You can `override` the library derivation to enable a different set of features.
+            # Explicit overriding will disable "default", unless you manually include it.
+            mypkg1-with-custom-features = (ws.release.mypkg1.override {
+              # Enables two features (and transitive ones), and disables "default".
+              features = [ "feature1" "feature2" ]; 
+            }).bin;
+          };
       });
 }
 ```
