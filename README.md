@@ -76,11 +76,6 @@ A template `flake.nix` with common setup are below. It's mostly the same as the 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
     flake-utils.url = "github:numtide/flake-utils";
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-utils.follows = "flake-utils";
-    };
     nocargo = {
       url = "github:oxalica/nocargo";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -97,7 +92,7 @@ A template `flake.nix` with common setup are below. It's mostly the same as the 
     # registry-crates-io = { url = "github:rust-lang/crates.io-index"; flake = false; };
   };
 
-  outputs = { nixpkgs, flake-utils, rust-overlay, nocargo, ... }@inputs:
+  outputs = { nixpkgs, flake-utils, nocargo, ... }@inputs:
     flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
         # The entry API to make Nix derivations from your Rust workspace or package.
@@ -139,8 +134,9 @@ A template `flake.nix` with common setup are below. It's mostly the same as the 
             };
           };
 
-          # Use the latest stable release of rustc. Fallback to nixpkgs' rustc if omitted.
-          rustc = rust-overlay.packages.${system}.rust;
+          # We use the rustc from nixpkgs by default.
+          # But you can override it, for example, with a nightly version from https://github.com/oxalica/rust-overlay
+          # rustc = rust-overlay.packages.${system}.rust-nightly_2022-07-01;
         };
       in rec {
         # For convenience, we hoist derivations of `release` and `dev` profile for easy access,

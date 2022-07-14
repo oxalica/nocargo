@@ -62,8 +62,9 @@ let
       nativeBuildInputs = [ noc pkgs.nix ];
       checkFlags =
         mapAttrsToList (from: to: "--override-input ${from} ${to}") {
-          inherit (inputs) nixpkgs flake-utils rust-overlay registry-crates-io;
+          inherit (inputs) nixpkgs flake-utils;
           nocargo = self;
+          "nocargo/registry-crates-io" = inputs.registry-crates-io;
           registry-1 = inputs.registry-crates-io;
           git-1 = git-semver-1-0-0;
           git-2 = git-semver-1-0-0;

@@ -2,18 +2,13 @@
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-utils.follows = "flake-utils";
-    };
     registry-crates-io = {
       url = "github:rust-lang/crates.io-index";
       flake = false;
     };
   };
 
-  outputs = { self, flake-utils, nixpkgs, rust-overlay, registry-crates-io }@inputs:
+  outputs = { self, flake-utils, nixpkgs, registry-crates-io }@inputs:
     let
       supportedSystems = [ "x86_64-linux" ];
 

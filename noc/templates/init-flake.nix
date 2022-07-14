@@ -1,3 +1,4 @@
+# See more usages of nocargo at https://github.com/oxalica/nocargo#readme
 {
   {%- if let Some((pkg_name, _)) = main_pkg %}
   description = "Rust package {{ pkg_name|nix_escape }}";
@@ -8,18 +9,13 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
     flake-utils.url = "github:numtide/flake-utils";
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-utils.follows = "flake-utils";
-    };
     nocargo = {
       url = "github:oxalica/nocargo";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.registry-crates-io.follows = "registry-crates-io";
+      # inputs.registry-crates-io.follows = "registry-crates-io";
     };
-
-    registry-crates-io = { url = "github:rust-lang/crates.io-index"; flake = false; };
+    # Optionally, you can override crates.io index to get cutting-edge packages.
+    # registry-crates-io = { url = "github:rust-lang/crates.io-index"; flake = false; };
     {%- for (_, flake_ref) in registries %}
     registry-{{ loop.index }} = { url = "{{ flake_ref|nix_escape }}"; flake = false; };
     {%- endfor %}
@@ -28,16 +24,13 @@
     {%- endfor %}
   };
 
-  outputs = { nixpkgs, flake-utils, rust-overlay, nocargo, ... }@inputs:
+  outputs = { nixpkgs, flake-utils, nocargo, ... }@inputs:
     flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
         ws = nocargo.lib.${system}.mkRustPackageOrWorkspace {
           src = ./.;
-
-          # Use the latest stable release of rustc. Fallback to nixpkgs' rustc if omitted.
-          rustc = rust-overlay.packages.${system}.rust;
-
           {%- if !registries.is_empty() %}
+
           # Referenced external registries other than crates.io.
           extraRegistries = {
             {%- for (source_id, _) in registries %}
@@ -45,8 +38,8 @@
             {%- endfor %}
           };
           {%- endif %}
-
           {%- if !git_srcs.is_empty() %}
+
           # Referenced external rust packages from git.
           gitSrcs = {
             {%- for (source_id, _) in git_srcs %}
