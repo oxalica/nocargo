@@ -1,28 +1,26 @@
 declare -a buildFlagsArray
-buildFlagsArray+=(
-    --color=always
-)
+buildFlagsArray+=( --color=always )
 
 if [[ -n "${optLevel:-}" ]]; then
-    buildFlagsArray+=(-C opt-level="$optLevel")
+    buildFlagsArray+=(-Copt-level="$optLevel")
 fi
 if [[ -n "${debugInfo:-}" ]]; then
-    buildFlagsArray+=(-C debuginfo="$debugInfo")
+    buildFlagsArray+=(-Cdebuginfo="$debugInfo")
 fi
 if [[ -n "${debugAssertions:-}" ]]; then
-    buildFlagsArray+=(-C debug-assertions=$debugAssertions)
+    buildFlagsArray+=(-Cdebug-assertions="$debugAssertions")
 fi
 if [[ -n "${overflowChecks:-}" ]]; then
-    buildFlagsArray+=(-C overflow-checks=$overflowChecks)
+    buildFlagsArray+=(-Coverflow-checks="$overflowChecks")
 fi
 if [[ -n "${lto:-}" ]]; then
-    buildFlagsArray+=(-C lto=$lto)
+    buildFlagsArray+=(-Clto="$lto")
 fi
 if [[ -n "${panic:-}" ]]; then
-    buildFlagsArray+=(-C panic=$panic)
+    buildFlagsArray+=(-Cpanic="$panic")
 fi
 if [[ -n "${codegenUnits:-}" ]]; then
-    buildFlagsArray+=(-C codegen-units="$codegenUnits")
+    buildFlagsArray+=(-Ccodegen-units="$codegenUnits")
 fi
 if [[ -n "${capLints:-}" ]]; then
     buildFlagsArray+=(--cap-lints="$capLints")
@@ -70,7 +68,7 @@ addExternFlags() {
                 exit 1
             fi
         fi
-        eval "$var"'+=(--extern "$rename=${paths[0]}")'
+        eval "$var"'+=(--extern="$rename=${paths[0]}")'
     done
 }
 
@@ -78,7 +76,7 @@ addFeatures() {
     local var="$1" feat
     shift
     for feat in "$@"; do
-        eval "$var"'+=(--cfg "feature=\"$feat\"")'
+        eval "$var"'+=(--cfg="feature=\"$feat\"")'
     done
 }
 

@@ -117,7 +117,7 @@ configurePhase() {
 
     depsClosure="$(mktemp -d)"
     collectTransDeps "$depsClosure" $dependencies
-    buildFlagsArray+=(-L "dependency=$depsClosure")
+    buildFlagsArray+=(-Ldependency="$depsClosure")
 
     runHook postConfigure
 }

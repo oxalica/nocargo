@@ -2,7 +2,7 @@ source $stdenv/setup
 source $builderCommon
 shopt -s nullglob
 
-buildFlagsArray+=( -C metadata="$rustcMeta" )
+buildFlagsArray+=( -Cmetadata="$rustcMeta" )
 
 configurePhase() {
     runHook preConfigure
@@ -27,7 +27,7 @@ configurePhase() {
 
     edition="$(jq --raw-output '.package.edition // .lib.edition // ""' "$cargoTomlJson")"
     if [[ -n "$edition" ]]; then
-        buildFlagsArray+=(--edition "$edition")
+        buildFlagsArray+=(--edition="$edition")
     fi
 
     mapfile -t crateTypes < <(jq --raw-output '.lib."crate-type" // ["lib"] | .[]' "$cargoTomlJson")
@@ -73,7 +73,7 @@ configurePhase() {
     export CARGO_CRATE_NAME="$crateName"
 
     collectTransDeps $dev/rust-support/deps-closure $dependencies
-    buildFlagsArray+=(-L "dependency=$dev/rust-support/deps-closure")
+    buildFlagsArray+=(-Ldependency="$dev/rust-support/deps-closure")
 
     runHook postConfigure
 }
@@ -88,12 +88,12 @@ buildPhase() {
     mkdir -p $out/lib
     runRustc "Building lib" \
         "$libSrc" \
-        --out-dir $out/lib \
-        --crate-name "$crateName" \
-        --crate-type "$crateTypesCommaSep" \
-        --emit metadata,link \
-        -C embed-bitcode=no \
-        -C extra-filename="-$rustcMeta" \
+        --out-dir="$out/lib" \
+        --crate-name="$crateName" \
+        --crate-type="$crateTypesCommaSep" \
+        --emit=metadata,link \
+        -Cembed-bitcode=no \
+        -Cextra-filename="-$rustcMeta" \
         "${buildFlagsArray[@]}"
 
     runHook postBuild

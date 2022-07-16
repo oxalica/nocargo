@@ -4,7 +4,7 @@ shopt -s nullglob
 
 preInstallPhases+="runPhase "
 
-buildFlagsArray+=( -C metadata="$rustcMeta" )
+buildFlagsArray+=( -Cmetadata="$rustcMeta" )
 
 configurePhase() {
     runHook preConfigure
@@ -22,7 +22,7 @@ configurePhase() {
 
     edition="$(jq --raw-output '.package.edition // ""' "$cargoTomlJson")"
     if [[ -n "$edition" ]]; then
-        buildFlagsArray+=(--edition "$edition")
+        buildFlagsArray+=(--edition="$edition")
     fi
 
     addFeatures buildFlagsArray $features
@@ -31,7 +31,7 @@ configurePhase() {
 
     depsClosure="$(mktemp -d)"
     collectTransDeps "$depsClosure" $dependencies
-    buildFlagsArray+=(-L "dependency=$depsClosure")
+    buildFlagsArray+=(-Ldependency="$depsClosure")
 
     runHook postConfigure
 }
@@ -43,11 +43,11 @@ buildPhase() {
 
     runRustc "Building build script" \
         "$buildScriptSrc" \
-        --out-dir "$out/bin" \
-        --crate-name "build_script_build" \
-        --crate-type bin \
-        --emit link \
-        -C embed-bitcode=no \
+        --out-dir="$out/bin" \
+        --crate-name="build_script_build" \
+        --crate-type=bin \
+        --emit=link \
+        -Cembed-bitcode=no \
         "${buildFlagsArray[@]}"
 
     runHook postBuild
