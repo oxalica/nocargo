@@ -39,10 +39,14 @@ let
   '';
 
   mkHelloWorldTest = src:
-    mapAttrs (_: pkgs: shouldBeHelloWorld (head (attrValues pkgs)))
-      (mkRustPackageOrWorkspace {
+    let
+      ws = mkRustPackageOrWorkspace {
         inherit src gitSrcs extraRegistries;
-      });
+      };
+      profiles = mapAttrs (_: pkgs: shouldBeHelloWorld (head (attrValues pkgs))) ws;
+    in {
+      inherit (profiles) dev release;
+    };
 
   mkWorkspaceTest = src: expectMembers: let
     ws = mkRustPackageOrWorkspace { inherit src; };
