@@ -89,18 +89,19 @@ importBuildOut() {
     echo export OUT_DIR="$drv/rust-support/out-dir"
     export OUT_DIR="$drv/rust-support/out-dir"
 
-    cat "$drv/rust-support/rustc-envs"
-    source "$drv/rust-support/rustc-envs"
+    if [[ -e "$drv/rust-support/rustc-env" ]]; then
+        cat "$drv/rust-support/rustc-env"
+        source "$drv/rust-support/rustc-env"
+    fi
 
-    mapfile -t flags <"$drv/rust-support/rustc-flags"
-    eval "$var"'+=("${flags[@]}")'
+    if [[ -e "$drv/rust-support/rustc-flags" ]]; then
+        mapfile -t flags <"$drv/rust-support/rustc-flags"
+        eval "$var"'+=("${flags[@]}")'
+    fi
 
-    mapfile -t flags <"$drv/rust-support/cdylib-link-flags"
-    eval "$cvar"'+=("${flags[@]}")'
-
-    if [[ -n "${dev:-}" ]]; then
-        mkdir -p "$dev/rust-support"
-        cp -t "$dev/rust-support" "$drv/rust-support/dependent-meta"
+    if [[ -e "$drv/rust-support/rustc-cdylib-flags" ]]; then
+        mapfile -t flags <"$drv/rust-support/rustc-cdylib-flags"
+        eval "$cvar"'+=("${flags[@]}")'
     fi
 }
 

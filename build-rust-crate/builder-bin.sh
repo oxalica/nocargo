@@ -112,7 +112,7 @@ configurePhase() {
 
     addExternFlags buildFlagsArray link $dependencies
     addFeatures buildFlagsArray $features
-    importBuildOut buildFlagsArray cdylibBuildFlagsArray "$buildOutDrv"
+    importBuildOut buildFlagsArray cdylibBuildFlagsArray "$buildDrv"
     setCargoCommonBuildEnv
 
     depsClosure="$(mktemp -d)"

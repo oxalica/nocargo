@@ -64,7 +64,7 @@ configurePhase() {
     fi
 
     declare -a cdylibBuildFlagsArray
-    importBuildOut buildFlagsArray cdylibBuildFlagsArray "$buildOutDrv"
+    importBuildOut buildFlagsArray cdylibBuildFlagsArray "$buildDrv"
     # FIXME: cargo include cdylib flags for all crate-types once cdylib is included.
     buildFlagsArray+=( "${cdylibBuildFlagsArray[@]}" )
 

@@ -42,8 +42,6 @@ let
 
   builderCommon = ./builder-common.sh;
 
-  profileExt = if profile.name == "dev" || profile.name == "test" then "-debug" else "";
-
   convertBool = f: t: x:
     if x == true then t
     else if x == false then f
@@ -97,34 +95,32 @@ let
   }) (platformToCfgAttrs stdenv.hostPlatform);
 
   buildDrv = stdenv.mkDerivation ({
-    name = "rust_${pname}${profileExt}-build-${version}";
+    name = "rust_${pname}-${version}-build";
     builder = ./builder-build-script.sh;
-    inherit propagatedBuildInputs builderCommon features;
+    inherit propagatedBuildInputs builderCommon features links;
     rustcMeta = buildRustcMeta;
     dependencies = buildDeps;
 
-    # This requires link.
-    # So include transitively propagated upstream `-sys` crates' ld dependencies.
-    buildInputs = toDevDrvs dependencies;
-
-  } // commonArgs // buildProfile');
-
-  buildOutDrv = stdenv.mkDerivation ({
-    name = "rust_${pname}${profileExt}-build-out-${version}";
-    builder = ./builder-build-script-run.sh;
-    inherit propagatedBuildInputs buildDrv builderCommon links;
-    linksDependencies = map (dep: dep.drv.buildOutDrv) linksDependencies;
+    linksDependencies = map (dep: dep.drv.buildDrv) linksDependencies;
 
     HOST = rust.toRustTarget stdenv.buildPlatform;
     TARGET = rust.toRustTarget stdenv.hostPlatform;
-  } // commonArgs // profile' // cargoCfgs);
+
+    # This drv links for `build_script_build`.
+    # So include transitively propagated upstream `-sys` crates' ld dependencies.
+    buildInputs = toDevDrvs dependencies;
+
+    # Build script may produce object files and static libraries which should not be modified.
+    dontFixup = true;
+
+  } // commonArgs // buildProfile');
 
   libDrv = stdenv.mkDerivation ({
-    name = "rust_${pname}${profileExt}-${version}";
+    name = "rust_${pname}-${version}";
 
     builder = ./builder-lib.sh;
     outputs = [ "out" "dev" ];
-    inherit builderCommon buildOutDrv features rustcMeta;
+    inherit builderCommon buildDrv features rustcMeta;
 
     # Transitively propagate upstream `-sys` crates' ld dependencies.
     # Since `rlib` doesn't link.
@@ -135,14 +131,14 @@ let
   } // commonArgs // profile');
 
   binDrv = stdenv.mkDerivation ({
-    name = "rust_${pname}${profileExt}-bin-${version}";
+    name = "rust_${pname}-${version}-bin";
     builder = ./builder-bin.sh;
-    inherit propagatedBuildInputs builderCommon buildOutDrv features rustcMeta;
+    inherit propagatedBuildInputs builderCommon buildDrv features rustcMeta;
 
     libOutDrv = libDrv.out;
     libDevDrv = libDrv.dev;
 
-    # This requires link.
+    # This requires linking.
     # Include transitively propagated upstream `-sys` crates' ld dependencies.
     buildInputs = toDevDrvs dependencies;
 
@@ -152,6 +148,5 @@ let
 in
   libDrv // {
     build = buildDrv;
-    buildOut = buildOutDrv;
     bin = binDrv;
   }
