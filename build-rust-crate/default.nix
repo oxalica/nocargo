@@ -113,7 +113,7 @@ let
     # Build script may produce object files and static libraries which should not be modified.
     dontFixup = true;
 
-  } // commonArgs // buildProfile');
+  } // commonArgs // cargoCfgs // buildProfile');
 
   libDrv = stdenv.mkDerivation ({
     name = "rust_${pname}-${version}";
