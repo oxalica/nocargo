@@ -51,13 +51,13 @@
         packages = rec {
           default = noc;
           toml2json = pkgs.callPackage ./toml2json { };
-          noc = (self.lib.${system}.mkRustPackageOrWorkspace {
+          noc = (lib.mkRustPackageOrWorkspace {
             src = ./noc;
           }).release.nocargo.bin;
 
-          cache-dev = (self.lib.${system}.mkRustPackageOrWorkspace {
-            src = ./cache;
-          }).dev.cache;
+          cache = pkgs.callPackage ./cache {
+            inherit (lib) mkRustPackageOrWorkspace;
+          };
         };
 
         checks = let

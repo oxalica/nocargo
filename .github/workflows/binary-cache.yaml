@@ -1,0 +1,23 @@
+name: Binary cache
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  populate:
+    name: Build and push binary cache
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.0.2
+      - name: Install Nix
+        uses: cachix/install-nix-action@v17
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v10
+        with:
+          name: nocargo
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          pushFilter: '(-source$|\.tar\.gz)'
+      - name: Build crates
+        run: nix build .#cache --show-trace --no-update-lock-file
