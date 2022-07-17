@@ -3,6 +3,7 @@
 🚧 *This project is under development and is not ready for production yet. APIs are subjects to change.*
 
 Build Rust crates with *Nix Build System*.
+- **No IFDs** (import-from-derivation). See [meme](https://gist.github.com/oxalica/d3b1251eb29d10e6f3cb2005167ddcd9).
 - No `cargo` dependency during building. Only `rustc`.
 - No need for hash prefetching or code generation[^no-code-gen].
 - Crate level caching, globally shared.
