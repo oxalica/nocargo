@@ -10,8 +10,11 @@ Build Rust crates with *Nix Build System*.
 
 [^no-code-gen]: Initial template generation and `Cargo.lock` updatin don't count for "code generation". The former is optional, and the latter is indeed not "code".
 
-## Feature checklist
+<details>
+<summary>Feature checklist</summary>
 
+- Binary cache
+  - [x] Top 256 popular crate versions with default features
 - Nix library
   - [ ] Non-flake support.
   - [x] `[workspace]`
@@ -48,11 +51,16 @@ Build Rust crates with *Nix Build System*.
       - [ ] Example
   - [ ] `Cargo.lock` generation and updating
 
+</details>
+
 ## Start with Nix flake
 
+1. (Optional) Add binary substituters for pre-built popular crates, by either
+   - Install `cachix` and run `cachix use nocargo` ([see more detail about `cachix`](https://app.cachix.org/cache/nocargo)), or
+   - Manually add substituter `https://nocargo.cachix.org` with public key `nocargo.cachix.org-1:W6jkp5htZBA1tUdU8XHLaD7zBrIFnor0MsLhHgrJeHk=`
 1. Enter the root directory of your rust workspace or package. Currently, you should have `Cargo.lock` already created by `cargo`.
-2. Run `nix run github:oxalica/nocargo init` to generate `flake.nix`. Or write it by hand by following [the next section](#example-flake.nix-structure).
-3. Check flake outputs with `nix flake show`. Typically, the layout would be like,
+1. Run `nix run github:oxalica/nocargo init` to generate `flake.nix`. Or write it by hand by following [the next section](#example-flake.nix-structure).
+1. Check flake outputs with `nix flake show`. Typically, the layout would be like,
    ```
    └───packages
        └───x86_64-linux
@@ -62,10 +70,10 @@ Build Rust crates with *Nix Build System*.
            ├───mypkg2: package 'rust_mypkg2-0.1.0'            # etc.
            └───mypkg2-dev: package 'rust_mypkg2-debug-0.1.0'
    ```
-4. Run `nix build .#<pkgname>` to build your package. Built binaries (if any) will be placed in `./result/bin`, and the library will be in `./result/lib`.
-5. Have fun!
+1. Run `nix build .#<pkgname>` to build your package. Built binaries (if any) will be placed in `./result/bin`, and the library will be in `./result/lib`.
+1. Have fun!
 
-## Example `flake.nix` structure
+## Example `flake.nix` structure for reference 
 
 A template `flake.nix` with common setup are below. It's mostly the same as the generated one, except that the helper `noc` will scan the workspace and discover all external registries and git dependencies for you.
 
@@ -178,7 +186,7 @@ Detail comparison of nocargo, cargo2nix/buildRustCrate, naersk and buildRustPack
 | Depend on `cargo` | Updating `Cargo.lock` | Updating & generating & building | Updating & vendoring & building | Building |
 | Derivation granularity | Per crate | Per crate | Per package + one dependency closure | All in one |
 | Crate level sharing | ✔️ | ✔️ | ✖ | ✖ |
-| Binary substitution per crate | Planned | Not implemented | ✖ | ✖ |
+| Binary substitution per crate | ✔️ | Not implemented | ✖ | ✖ |
 | Code generation | ✖ | ✔️ | ✖ | ✖ |
 | Edit workspace & rebuild | Rebuild leaf crates | Rebuild leaf crates | Rebuild leaf crates | Refetch and rebuild all crates |
 | Edit dependencies & rebuild | Rebuild changed crates (refetch if needed) | Refetch, regenerate and rebuild changed crates | Refetch and rebuild all crates | Refetch and rebuild all crates |
@@ -189,7 +197,7 @@ Detail comparison of nocargo, cargo2nix/buildRustCrate, naersk and buildRustPack
 ### But why pure Nix build system?
 
 - Sharing through fine-grained derivations between all projects, not just in one workspace.
-- Binary substitution per crate (planned).
+- Binary substitution per crate.
   No need for global `target_dir`/`CARGO_TARGET_DIR` or [sccache].
 - Easy `nixpkgs` integration for non-Rust package dependencies, cross-compilation (planned) and package overriding.
 - More customizability: per-crate `rustc` flags tweaking, arbitrary crate patching, force dynamic linking and more.
