@@ -15,6 +15,9 @@ if [[ -n "${overflowChecks:-}" ]]; then
 fi
 if [[ -n "${lto:-}" ]]; then
     buildFlagsArray+=(-Clto="$lto")
+    buildFlagsArray+=(-Clinker-plugin-lto)
+else
+    buildFlagsArray+=(-Cembed-bitcode=no)
 fi
 if [[ -n "${panic:-}" ]]; then
     buildFlagsArray+=(-Cpanic="$panic")

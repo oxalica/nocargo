@@ -47,7 +47,6 @@ buildPhase() {
         --crate-name="build_script_build" \
         --crate-type=bin \
         --emit=link \
-        -Cembed-bitcode=no \
         "${buildFlagsArray[@]}"
 
     runHook postBuild
