@@ -13,12 +13,6 @@ fi
 if [[ -n "${overflowChecks:-}" ]]; then
     buildFlagsArray+=(-Coverflow-checks="$overflowChecks")
 fi
-if [[ -n "${lto:-}" ]]; then
-    buildFlagsArray+=(-Clto="$lto")
-    buildFlagsArray+=(-Clinker-plugin-lto)
-else
-    buildFlagsArray+=(-Cembed-bitcode=no)
-fi
 if [[ -n "${panic:-}" ]]; then
     buildFlagsArray+=(-Cpanic="$panic")
 fi
@@ -39,6 +33,15 @@ collectTransDeps() {
         # May be empty.
         cp --no-dereference --no-clobber -t $collectDir $depDev/rust-support/deps-closure/* 2>/dev/null || true
     done
+}
+
+addLtoFlags() {
+    if [[ -n "${1:-}" ]]; then
+        buildFlagsArray+=(-Clto="$1")
+        buildFlagsArray+=(-Clinker-plugin-lto)
+    else
+        buildFlagsArray+=(-Cembed-bitcode=no)
+    fi
 }
 
 addExternFlags() {

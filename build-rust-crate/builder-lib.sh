@@ -37,6 +37,10 @@ configurePhase() {
         buildFlagsArray+=(--extern=proc_macro)
         mkdir -p $dev/rust-support
         touch $dev/rust-support/is-proc-macro
+        # Do not enable LTO for proc-macro crates.
+        addLtoFlags ""
+    else
+        addLtoFlags "$lto"
     fi
 
     needLinkDeps=
