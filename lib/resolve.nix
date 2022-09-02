@@ -2,8 +2,9 @@
 let
   inherit (builtins) readFile match fromTOML fromJSON toJSON;
   inherit (lib)
-    foldl' foldr concatStringsSep listToAttrs filter elemAt length optional sort
-    mapAttrs attrNames filterAttrs composeManyExtensions assertMsg;
+    foldl' foldr concatStringsSep listToAttrs filter elemAt length optional sort elem flatten
+    hasPrefix substring
+    attrValues mapAttrs attrNames filterAttrs composeManyExtensions assertMsg;
   inherit (self.semver) parseSemverReq;
   inherit (self.pkg-info) mkPkgInfoFromCargoToml getPkgInfoFromIndex toPkgId sanitizeDep;
 in rec {
@@ -111,6 +112,38 @@ in rec {
   in
     assert assertMsg (lock.version or 3 == 3) "Unsupported version of Cargo.lock: ${toString lock.version}";
     resolved;
+
+  # Calculate the closure of each feature, with `dep:pkg` and `pkg?/feat` syntax desugared.
+  # [String] -> { [String] } -> { [String | { dep: String, feat?: String }] }
+  preprocessFeatures = optionalDeps: defs: let
+    allRefs = flatten (attrValues defs);
+    defs' =
+      listToAttrs
+        (map (dep: { name = dep; value = [ "dep:${dep}" ]; })
+          (filter (dep: !elem "dep:${dep}" allRefs)
+            optionalDeps))
+      // defs;
+    go = prev: feat:
+      let
+        m = match "([a-zA-Z0-9]+)(\\?)?/([a-zA-Z0-9]+)" feat;
+        depName = elemAt m 0;
+        isWeak = elemAt m 1 != null;
+        depFeat = elemAt m 2;
+      in if elem feat prev then
+        prev
+      else if defs' ? ${feat} then
+        foldl' go ([ feat ] ++ prev) defs'.${feat}
+      else if hasPrefix "dep:" feat then
+        [ { dep = substring 4 (-1) feat; } ] ++ prev
+      else if m == null then
+        [ feat ] ++ prev
+      else if isWeak then
+        [ { dep = depName; feat = depFeat; } ] ++ prev
+      else
+        [ { dep = depName; } { dep = depName; feat = depFeat; } ] ++ prev;
+    fixed = mapAttrs (feat: _: go [ ] feat) defs';
+  in
+    fixed;
 
   # Enable `features` in `prev` and do recursive update according to `defs`.
   # Optional dependencies must be included in `defs`.
@@ -225,6 +258,32 @@ in rec {
 
   in
     final';
+
+  preprocess-feature-tests = { assertEq, ... }: let
+    test = optionalDeps: featureDefs: expect:
+      assertEq (preprocessFeatures optionalDeps featureDefs) expect;
+  in {
+    recursive = test [ ] { a = [ "b" ]; b = [ "a" "c" ]; c = [ ]; } {
+      a = [ "c" "b" "a" ];
+      b = [ "c" "a" "b" ];
+      c = [ "c" ];
+    };
+    auto-dep = test [ "a" ] { b = [ "a" ]; } {
+      a = [ { dep = "a"; } "a" ];
+      b = [ { dep = "a"; } "a" "b" ];
+    };
+    manual-dep = test [ "a" ] { b = [ "dep:a" ]; } {
+      b = [ { dep = "a"; } "b" ];
+    };
+    strong-dep = test [ "a" ] { b = [ "a/c" ]; } {
+      a = [ { dep = "a"; } "a" ];
+      b = [ { dep = "a"; } { dep = "a"; feat = "c"; } "b" ];
+    };
+    weak-dep = test [ "a" ] { b = [ "a?/c" ]; } {
+      a = [ { dep = "a"; } "a" ];
+      b = [ { dep = "a"; feat = "c"; } "b" ];
+    };
+  };
 
   update-feature-tests = { assertEq, ... }: let
     testUpdate = defs: features: expect: let
