@@ -39,6 +39,7 @@ addLtoFlags() {
     if [[ -n "${1:-}" ]]; then
         buildFlagsArray+=(-Clto="$1")
         buildFlagsArray+=(-Clinker-plugin-lto)
+        buildFlagsArray+=(-Clinker=rust-lld)
     else
         buildFlagsArray+=(-Cembed-bitcode=no)
     fi
