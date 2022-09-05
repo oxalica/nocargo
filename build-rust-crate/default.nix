@@ -1,4 +1,4 @@
-{ lib, nocargo-lib, stdenv, buildPackages, rust, toml2json, jq }:
+{ lib, nocargo-lib, stdenv, buildPackages, rust, toml2json, jq, darwin }:
 { pname
 , version
 , src
@@ -13,6 +13,7 @@
 , profile ? {}
 , capLints ? null
 
+, buildInputs ? []
 , nativeBuildInputs ? []
 , propagatedBuildInputs ? []
 , ...
@@ -65,6 +66,13 @@ let
     inherit pname version src;
 
     nativeBuildInputs = [ toml2json jq ] ++ nativeBuildInputs;
+
+    buildInputs = lib.optionals stdenv.isDarwin [
+      darwin.Security
+      darwin.apple_sdk.frameworks.CoreServices
+      darwin.cf-private
+      darwin.libiconv
+    ] ++ buildInputs;
 
     sharedLibraryExt = stdenv.hostPlatform.extensions.sharedLibrary;
 

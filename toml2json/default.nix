@@ -1,4 +1,4 @@
-{ stdenv, fetchurl, rustc }:
+{ lib, stdenv, fetchurl, rustc, darwin }:
 let
   fetch = name: version: sha256:
     fetchurl {
@@ -18,6 +18,7 @@ in stdenv.mkDerivation {
 
   sourceRoot = ".";
 
+  buildInputs = lib.optional stdenv.isDarwin darwin.libiconv;
   nativeBuildInputs = [ rustc ];
 
   buildPhase = ''

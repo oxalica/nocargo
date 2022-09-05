@@ -5,8 +5,11 @@ on:
 
 jobs:
   flake-check:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     name: Flake check (locked)
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3.0.2
     - uses: cachix/install-nix-action@v17
