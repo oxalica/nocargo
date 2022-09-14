@@ -135,6 +135,7 @@ buildPhase() {
             ${buildFlagsMap["$binName"]} \
             --crate-type bin \
             --out-dir $out/bin \
+            $buildFlags \
             "${buildFlagsArray[@]}"
     done
 

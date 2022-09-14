@@ -48,6 +48,7 @@ buildPhase() {
         --crate-type=bin \
         --emit=link \
         -Cembed-bitcode=no \
+        $buildScriptBuildFlags \
         "${buildFlagsArray[@]}"
 
     runHook postBuild
@@ -67,15 +68,6 @@ runPhase() {
 
     export OUT_DIR="$out/rust-support/out-dir"
     export NUM_JOBS=$NIX_BUILD_CORES
-    export OPT_LEVEL="${optLevel:-0}"
-    if [[ -n "$debugInfo" && "$debugInfo" -ne 0 ]]; then
-        export DEBUG=true
-    else
-        export DEBUG=false
-    fi
-
-    export PROFILE="$profileName"
-
     export RUSTC_BACKTRACE=1 # Make debugging easier.
 
     local buildOut

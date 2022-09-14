@@ -92,8 +92,8 @@ buildPhase() {
         --crate-name="$crateName" \
         --crate-type="$crateTypesCommaSep" \
         --emit=metadata,link \
-        -Cembed-bitcode=no \
         -Cextra-filename="-$rustcMeta" \
+        $buildFlags \
         "${buildFlagsArray[@]}"
 
     runHook postBuild

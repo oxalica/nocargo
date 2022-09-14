@@ -1,31 +1,6 @@
 declare -a buildFlagsArray
 buildFlagsArray+=( --color=always )
 
-if [[ -n "${optLevel:-}" ]]; then
-    buildFlagsArray+=(-Copt-level="$optLevel")
-fi
-if [[ -n "${debugInfo:-}" ]]; then
-    buildFlagsArray+=(-Cdebuginfo="$debugInfo")
-fi
-if [[ -n "${debugAssertions:-}" ]]; then
-    buildFlagsArray+=(-Cdebug-assertions="$debugAssertions")
-fi
-if [[ -n "${overflowChecks:-}" ]]; then
-    buildFlagsArray+=(-Coverflow-checks="$overflowChecks")
-fi
-if [[ -n "${lto:-}" ]]; then
-    buildFlagsArray+=(-Clto="$lto")
-fi
-if [[ -n "${panic:-}" ]]; then
-    buildFlagsArray+=(-Cpanic="$panic")
-fi
-if [[ -n "${codegenUnits:-}" ]]; then
-    buildFlagsArray+=(-Ccodegen-units="$codegenUnits")
-fi
-if [[ -n "${capLints:-}" ]]; then
-    buildFlagsArray+=(--cap-lints="$capLints")
-fi
-
 # Collect all transitive dependencies (symlinks).
 collectTransDeps() {
     local collectDir="$1" line rename depOut depDev

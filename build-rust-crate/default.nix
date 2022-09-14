@@ -12,6 +12,8 @@
 , features ? []
 , profile ? {}
 , capLints ? null
+, buildFlags ? []
+, buildScriptBuildFlags ? []
 
 , nativeBuildInputs ? []
 , propagatedBuildInputs ? []
@@ -47,17 +49,39 @@ let
     else if x == false then f
     else x;
 
+  # https://doc.rust-lang.org/cargo/reference/profiles.html
+  profileToRustcFlags = p:
+    []
+    ++ lib.optional (p.opt-level or 0 != 0) "-Copt-level=${toString p.opt-level}"
+    ++ lib.optional (p.debug or false != false) "-Cdebuginfo=${if p.debug == true then "2" else toString p.debug}"
+    # TODO: `-Cstrip` is not handled since stdenv will always strip them.
+    ++ lib.optional (p ? debug-assertions) "-Cdebug-assertions=${convertBool "no" "yes" p.debug-assertions}"
+    ++ lib.optional (p ? overflow-checks) "-Coverflow-checks=${convertBool "no" "yes" p.debug-assertions}"
+    ++ lib.optional (p.lto or false != false) "-Clto=${if p.lto == true then "fat" else p.lto}"
+    ++ lib.optional (p.panic or "unwind" != "unwind") "-Cpanic=${p.panic}"
+    # `incremental` is not useful since Nix builds in a sandbox.
+    ++ lib.optional (p ? codegen-units) "-Ccodegen-units=${toString p.codegen-units}"
+    ++ lib.optional (p.rpath or false) "-Crpath"
+
+    ++ lib.optional (p.lto or false == false) "-Cembed-bitcode=no"
+    ;
+
   convertProfile = p: {
-    profileName = p.name or null; # Build profile has no name.
-    optLevel = p.opt-level or null;
-    debugInfo = convertBool 0 2 (p.debug or null);
-    debugAssertions = convertBool "no" "yes" (p.debug-assertions or null);
-    overflowChecks = convertBool "no" "yes" (p.overflow-checks or null);
-    lto = convertBool "no" "yes" (p.lto or null);
-    panic = p.panic or null;
-    codegenUnits = p.codegen-units or null;
-    rpath = convertBool "no" "yes" (p.rpath or null);
+    buildFlags =
+      profileToRustcFlags p
+      ++ lib.optional (capLints != null) "--cap-lints=${capLints}"
+      ++ buildFlags;
+
+    buildScriptBuildFlags =
+      profileToRustcFlags (p.build-override or {})
+      ++ buildScriptBuildFlags;
+
+    # Build script environments.
+    PROFILE = p.name or null;
+    OPT_LEVEL = p.opt-level or 0;
+    DEBUG = p.debug or 0 != 0;
   };
+
   profile' = convertProfile profile;
   buildProfile' = convertProfile (profile.build-override or {});
 
