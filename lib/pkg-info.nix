@@ -197,10 +197,10 @@ rec {
           rename = replaceStrings ["-"] ["_"] name;
         });
 
-    collectTargetDeps = target: { dependencies ? {}, devDependencies ? {}, buildDependencies ? {}, ... }:
+    collectTargetDeps = target: { dependencies ? {}, dev-dependencies ? {}, build-dependencies ? {}, ... }:
       transDeps target "normal" dependencies ++
-      transDeps target "dev" devDependencies ++
-      transDeps target "build" buildDependencies;
+      transDeps target "dev" dev-dependencies ++
+      transDeps target "build" build-dependencies;
 
   in
     {
@@ -239,5 +239,32 @@ rec {
       };
     in
       assertEq info expected;
+
+    build-deps =
+      let
+        cargoToml = fromTOML (readFile ../tests/build-deps/Cargo.toml);
+        info = mkPkgInfoFromCargoToml cargoToml "<src>";
+        expected = {
+          name = "build-deps";
+          version = "0.0.0";
+          features = { };
+          src = "<src>";
+          links = null;
+          dependencies = [
+            {
+              name = "semver";
+              package = "semver";
+              default_features = true;
+              features = [ ];
+              kind = "build";
+              optional = false;
+              req = "1";
+              target = null;
+              source = "registry+https://github.com/rust-lang/crates.io-index";
+            }
+          ];
+        };
+      in
+        assertEq info expected;
   };
 }
