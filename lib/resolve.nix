@@ -1,12 +1,12 @@
 { lib, self }:
 let
-  inherit (builtins) readFile match fromTOML fromJSON toJSON;
+  inherit (builtins) readFile match fromTOML toJSON;
   inherit (lib)
-    foldl' foldr concatStringsSep listToAttrs filter elemAt length optional sort elem flatten
+    foldl' concatStringsSep listToAttrs filter elemAt length optional sort elem flatten
     hasPrefix substring
     attrValues mapAttrs attrNames filterAttrs composeManyExtensions assertMsg;
   inherit (self.semver) parseSemverReq;
-  inherit (self.pkg-info) mkPkgInfoFromCargoToml getPkgInfoFromIndex toPkgId sanitizeDep;
+  inherit (self.pkg-info) mkPkgInfoFromCargoToml toPkgId sanitizeDep;
 in rec {
 
   # Resolve the dependencies graph based on the lock file.
@@ -79,7 +79,7 @@ in rec {
         else
           elemAt candidates 0;
 
-      selectDep = candidates: { name, package, req, source ? null, ... }@dep:
+      selectDep = candidates: { name, package, req, source ? null, ... }:
         let
           # Local path or git dependencies don't have version req.
           checkReq = if req != null then parseSemverReq req else (ver: true);

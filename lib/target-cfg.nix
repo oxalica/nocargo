@@ -2,9 +2,9 @@
 let
   inherit (builtins) match tryEval;
   inherit (lib)
-    substring stringLength concatStrings
-    length elem elemAt any all filter optionals sort flatten isList
-    optionalAttrs filterAttrs mapAttrsToList;
+    concatStrings
+    length elem elemAt any all sort flatten isList
+    optionalAttrs mapAttrsToList;
 in
 rec {
   # https://doc.rust-lang.org/reference/conditional-compilation.html#target_arch

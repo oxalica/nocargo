@@ -12,10 +12,8 @@
     let
       supportedSystems = [ "x86_64-linux" ];
 
-      inherit (builtins) readFile fromJSON toJSON typeOf;
-      inherit (nixpkgs.lib)
-        isDerivation isFunction isAttrs mapAttrs mapAttrsToList listToAttrs
-        replaceStrings flatten composeExtensions;
+      inherit (builtins) toJSON typeOf;
+      inherit (nixpkgs.lib) isDerivation isFunction isAttrs mapAttrsToList listToAttrs flatten;
 
       nocargo-lib = import ./lib { inherit (nixpkgs) lib; };
 

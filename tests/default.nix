@@ -1,7 +1,7 @@
 { pkgs, self, inputs, defaultRegistries }:
 let
   inherit (pkgs.lib) mapAttrs attrNames attrValues assertMsg head mapAttrsToList;
-  inherit (self.lib.${pkgs.system}) mkRustPackageOrWorkspace mkIndex;
+  inherit (self.lib.${pkgs.system}) mkRustPackageOrWorkspace;
   inherit (self.packages.${pkgs.system}) noc;
 
   git-semver-1-0-0 = builtins.fetchTarball {

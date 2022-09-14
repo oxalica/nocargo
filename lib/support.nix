@@ -2,9 +2,9 @@
 let
   inherit (builtins) fromTOML toJSON match tryEval split;
   inherit (lib)
-    readFile mapAttrs mapAttrs' assertMsg makeOverridable warnIf
+    readFile mapAttrs mapAttrs' makeOverridable warnIf
     isString hasPrefix
-    head filter flatten elem elemAt listToAttrs subtractLists concatStringsSep
+    filter flatten elem elemAt listToAttrs subtractLists concatStringsSep
     attrNames attrValues recursiveUpdate optionalAttrs;
   inherit (self.pkg-info) mkPkgInfoFromCargoToml getPkgInfoFromIndex toPkgId;
   inherit (self.resolve) resolveDepsFromLock resolveFeatures;
@@ -262,7 +262,7 @@ rec {
           (split ''[\/]'' path));
 
   build-from-src-dry-tests = { assertEq, pkgs, defaultRegistries, ... }: let
-    inherit (builtins) seq toJSON head listToAttrs;
+    inherit (builtins) head listToAttrs;
 
     mkPackage = pkgs.callPackage mkRustPackageOrWorkspace {
       inherit defaultRegistries;

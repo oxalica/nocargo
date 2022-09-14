@@ -1,6 +1,6 @@
 { lib, ... }:
 let
-  inherit (builtins) match elemAt from fromJSON;
+  inherit (builtins) match elemAt fromJSON;
   inherit (lib) compare compareLists splitString all any;
 in rec {
   parseSemver = ver: let
