@@ -107,6 +107,7 @@ let
 in
 {
   _1000-hello-worlds = mapAttrs (name: path: mkHelloWorldTest path) {
+    crate-names = ./crate-names;
     custom-lib-name = ./custom-lib-name;
     dependency-v1 = ./dependency-v1;
     dependency-v2 = ./dependency-v2;

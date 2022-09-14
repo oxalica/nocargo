@@ -2,7 +2,7 @@
 let
   inherit (builtins) readFile readDir fromJSON fromTOML toString attrNames match;
   inherit (lib)
-    stringLength splitString replaceStrings substring isString
+    stringLength splitString replaceStrings substring isString toLower
     filter listToAttrs mapAttrs mapAttrsToList optionalAttrs warnIf;
 in
 rec {
@@ -40,16 +40,17 @@ rec {
 
   # Get pkg info of the given package, with overrides applied if exists.
   getPkgInfoFromIndex = index: { name, version, checksum ? null, ... }: let
-    len = stringLength name;
+    name' = toLower name;
+    len = stringLength name';
     crate =
       if len == 1 then
-        index."1".${name} or null
+        index."1".${name'} or null
       else if len == 2 then
-        index."2".${name} or null
+        index."2".${name'} or null
       else if len == 3 then
-        index."3".${substring 0 1 name}.${name} or null
+        index."3".${substring 0 1 name'}.${name'} or null
       else
-        index.${substring 0 2 name}.${substring 2 2 name}.${name} or null;
+        index.${substring 0 2 name'}.${substring 2 2 name'}.${name'} or null;
     info = crate.${version} or null;
   in
     if !(index ? __registry_index) then
