@@ -108,6 +108,7 @@ in
 {
   _1000-hello-worlds = mapAttrs (name: path: mkHelloWorldTest path) {
     build-deps = ./build-deps;
+    cap-lints = ./cap-lints;
     crate-names = ./crate-names;
     custom-lib-name = ./custom-lib-name;
     dependency-v1 = ./dependency-v1;
@@ -116,6 +117,8 @@ in
     features = ./features;
     libz-dynamic = ./libz-dynamic;
     libz-static = ./libz-static;
+    lto-fat = ./lto-fat;
+    lto-thin = ./lto-thin;
     tokio-app = ./tokio-app;
   } // {
     workspace-virtual = mkWorkspaceTest ./workspace-virtual [ "bar" "foo" ];

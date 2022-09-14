@@ -1,0 +1,10 @@
+[package]
+name = "lto-thin"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+semver = "1"
+
+[profile.release]
+lto = "thin"

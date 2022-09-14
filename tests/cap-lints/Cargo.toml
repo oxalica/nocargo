@@ -1,0 +1,21 @@
+[package]
+name = "cap-lints"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+# error: use of deprecated associated function `try_lock::TryLock::<T>::try_lock_order`: This method is actually unsafe because it unsafely allows the use of weaker memory ordering. Please use try_lock_explicit instead
+#    --> src/lib.rs:209:63
+#     |
+# 209 |                     if let Some(mut locked) = self.inner.task.try_lock_order(SeqCst, SeqCst) {
+#     |                                                               ^^^^^^^^^^^^^^
+#     |
+# note: the lint level is defined here
+#    --> src/lib.rs:2:9
+#     |
+# 2   | #![deny(warnings)]
+#     |         ^^^^^^^^
+#     = note: `#[deny(deprecated)]` implied by `#[deny(warnings)]`
+#
+# https://github.com/seanmonstar/want/blob/v0.3.0/src/lib.rs#L352
+want = "=0.3.0"
