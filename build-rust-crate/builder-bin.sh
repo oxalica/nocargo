@@ -104,7 +104,7 @@ configurePhase() {
 
     # Implicitly link library of current crate, if exists.
     if [[ -e "$libDevDrv"/lib ]]; then
-        addExternFlags buildFlagsArray link ":$libOutDrv:$libDevDrv"
+        addExternFlags buildFlagsArray link "::$libOutDrv:$libDevDrv"
     fi
 
     # Actually unused.

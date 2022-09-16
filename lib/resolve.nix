@@ -503,6 +503,7 @@ in rec {
         features = {};
         links = null;
         name = "bar";
+        procMacro = false;
         src = "<src>";
         version = "0.1.0";
       };
@@ -522,6 +523,7 @@ in rec {
         features = {};
         links = null;
         name = "foo";
+        procMacro = false;
         src = "<src>";
         version = "0.1.0";
       };

@@ -1,0 +1,1 @@
+procm::acro!("Hello, world!");

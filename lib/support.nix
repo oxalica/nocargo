@@ -207,7 +207,7 @@ rec {
           pkgsBuild = mapAttrs (id: features: let info = pkgSet.${id}; in
             if features != null then
               buildRustCrate' info {
-                inherit (info) version src;
+                inherit (info) version src procMacro;
                 inherit features profile rustc;
                 pname = info.name;
                 capLints = if localSrcInfos ? id then null else "allow";
@@ -223,7 +223,7 @@ rec {
           pkgs = mapAttrs (id: features: let info = pkgSet.${id}; in
             if features != null then
               buildRustCrate' info {
-                inherit (info) version src links;
+                inherit (info) version src links procMacro;
                 inherit features profile rustc;
                 pname = info.name;
                 capLints = if localSrcInfos ? id then null else "allow";

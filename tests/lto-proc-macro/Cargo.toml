@@ -1,0 +1,10 @@
+[package]
+name = "lto-proc-macro"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+thiserror = "1"
+
+[profile.release]
+lto = "thin"

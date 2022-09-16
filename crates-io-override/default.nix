@@ -1,8 +1,15 @@
 { lib, pkgs }:
-with pkgs;
 let
-  inherit (lib) optionalAttrs;
+  inherit (lib) optionalAttrs listToAttrs;
+  procMacroOverrides =
+    listToAttrs
+      (map (name: {
+        inherit name;
+        value = _: { procMacro = true; };
+      }) (import ./proc-macro.nix));
 in
+with pkgs;
+procMacroOverrides //
 {
   libz-sys = { features, ... }: optionalAttrs (!(features ? static)) {
     nativeBuildInputs = [ pkg-config ];

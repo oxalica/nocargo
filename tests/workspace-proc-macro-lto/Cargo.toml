@@ -1,0 +1,14 @@
+[package]
+name = "acro"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+procm = { path = "./procm" }
+
+[workspace]
+# FIXME: "." is required.
+members = ["procm", "."]
+
+[profile.release]
+lto = "thin"

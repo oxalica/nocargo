@@ -14,6 +14,7 @@
 , capLints ? null
 , buildFlags ? []
 , buildScriptBuildFlags ? []
+, procMacro ? false
 
 , nativeBuildInputs ? []
 , propagatedBuildInputs ? []
@@ -32,8 +33,10 @@ let
   buildRustcMeta = mkRustcMeta buildDependencies [];
   rustcMeta = mkRustcMeta dependencies [];
 
+  # TODO: Pass target binary paths instead of drv here?
   mkDeps = map ({ rename, drv, ... }: lib.concatStringsSep ":" [
     (toString rename)
+    (toString drv.procMacro)
     drv.out
     drv.dev
   ]);
@@ -57,7 +60,7 @@ let
     # TODO: `-Cstrip` is not handled since stdenv will always strip them.
     ++ lib.optional (p ? debug-assertions) "-Cdebug-assertions=${convertBool "no" "yes" p.debug-assertions}"
     ++ lib.optional (p ? overflow-checks) "-Coverflow-checks=${convertBool "no" "yes" p.debug-assertions}"
-    ++ lib.optional (p.lto or false != false) "-Clto=${if p.lto == true then "fat" else p.lto}"
+    ++ lib.optional (!procMacro && p.lto or false != false) "-Clto=${if p.lto == true then "fat" else p.lto}"
     ++ lib.optional (p.panic or "unwind" != "unwind") "-Cpanic=${p.panic}"
     # `incremental` is not useful since Nix builds in a sandbox.
     ++ lib.optional (p ? codegen-units) "-Ccodegen-units=${toString p.codegen-units}"
@@ -107,6 +110,9 @@ let
     "features"
     "profile"
     "capLints"
+    "buildFlags"
+    "buildScriptBuildFlags"
+    "procMacro"
     "nativeBuildInputs"
     "propagatedBuildInputs"
   ];
@@ -144,7 +150,7 @@ let
 
     builder = ./builder-lib.sh;
     outputs = [ "out" "dev" ];
-    inherit builderCommon buildDrv features rustcMeta;
+    inherit builderCommon buildDrv features rustcMeta procMacro;
 
     # Transitively propagate upstream `-sys` crates' ld dependencies.
     # Since `rlib` doesn't link.

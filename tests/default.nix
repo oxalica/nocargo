@@ -118,11 +118,13 @@ in
     libz-dynamic = ./libz-dynamic;
     libz-static = ./libz-static;
     lto-fat = ./lto-fat;
+    lto-proc-macro = ./lto-proc-macro;
     lto-thin = ./lto-thin;
     tokio-app = ./tokio-app;
   } // {
-    workspace-virtual = mkWorkspaceTest ./workspace-virtual [ "bar" "foo" ];
     workspace-inline = mkWorkspaceTest ./workspace-inline [ "bar" "baz" "foo" ];
+    workspace-proc-macro-lto = mkWorkspaceTest ./workspace-proc-macro-lto [ "acro" "procm" ];
+    workspace-virtual = mkWorkspaceTest ./workspace-virtual [ "bar" "foo" ];
   };
 
   _1100-gen-init = mapAttrs mkGenInit {

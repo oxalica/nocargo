@@ -3,23 +3,23 @@ buildFlagsArray+=( --color=always )
 
 # Collect all transitive dependencies (symlinks).
 collectTransDeps() {
-    local collectDir="$1" line rename depOut depDev
+    local collectDir="$1" line rename procMacro depOut depDev
     mkdir -p "$collectDir"
     shift
     for line in "$@"; do
-        IFS=: read -r rename depOut depDev <<<"$line"
+        IFS=: read -r rename procMacro depOut depDev <<<"$line"
         # May be empty.
         cp --no-dereference --no-clobber -t $collectDir $depDev/rust-support/deps-closure/* 2>/dev/null || true
     done
 }
 
 addExternFlags() {
-    local var="$1" kind="$2" line rename depOut depDev paths
+    local var="$1" kind="$2" line rename procMacro depOut depDev paths
     shift 2
     for line in "$@"; do
-        IFS=: read -r rename depOut depDev <<<"$line"
+        IFS=: read -r rename procMacro depOut depDev <<<"$line"
 
-        if [[ -e "$depDev/rust-support/is-proc-macro" ]]; then
+        if [[ -n "$procMacro" ]]; then
             paths=("$depOut"/lib/*"$sharedLibraryExt")
         elif [[ "$kind" == meta ]]; then
             paths=("$depDev"/lib/*.rmeta)
