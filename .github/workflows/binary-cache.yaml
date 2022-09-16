@@ -4,6 +4,14 @@ on:
     branches:
       - main
 
+  workflow_run:
+    workflows:
+      - update
+    types:
+      - completed
+    branches:
+      - main
+
 jobs:
   populate:
     name: Build and push binary cache
@@ -19,5 +27,6 @@ jobs:
           name: nocargo
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           pushFilter: '(-source$|\.tar\.gz)'
-      - name: Build crates
+
+      - name: Build cached crates
         run: nix build .#cache --show-trace --no-update-lock-file

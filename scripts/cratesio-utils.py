@@ -27,7 +27,7 @@ POPULAR_CRATES_MANIFEST_PATH = Path(__file__).parent.parent / 'cache' / 'Cargo.t
 PROC_MACRO_LIST_PATH = Path(__file__).parent.parent / 'crates-io-override' / 'proc-macro.nix'
 
 CACHE_DIR = Path(os.environ.get('XDG_CACHE_HOME') or (Path.home() / '.cache')) / 'cratesio'
-CRATES_TOML_DIR = CACHE_DIR / 'toml'
+CRATES_TOML_DIR = os.environ.get('CRATES_TOML_DIR') or (CACHE_DIR / 'toml')
 
 def noisily(*args) -> None:
     print(*args, file=sys.stderr)

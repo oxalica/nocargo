@@ -3,6 +3,14 @@ on:
   pull_request:
   push:
 
+  workflow_run:
+    workflows:
+      - update
+    types:
+      - completed
+    branches:
+      - main
+
 jobs:
   flake-check:
     name: Flake check (locked)

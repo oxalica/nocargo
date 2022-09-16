@@ -1,0 +1,52 @@
+name: Update
+on:
+  schedule:
+    - cron: '0 0 * * *' # *-*-* 00:00:00 UTC
+
+  workflow_dispatch:
+
+env:
+  BRANCH: dev
+
+jobs:
+  update:
+    name: Update locks
+    runs-on: ubuntu-latest
+    env:
+      CRATES_TOML_DIR: /crates-toml
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.0.2
+        with:
+          rev: ${{ env.BRANCH }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Nix
+        uses: cachix/install-nix-action@v17
+
+      - name: Cache fetched Cargo.toml files
+        uses: actions/cache@v3.0.8
+        with:
+          path: ${{ env.CRATES_TOML_DIR }}
+          key: crates-toml
+
+      - name: Sync crates.io database
+        run: ./scripts/cratesio-utils.py sync
+      - name: Update proc-macro crates
+        run: ./scripts/cratesio-utils.py update-proc-macro-crates
+      - name: Update lockfile of popular crates
+        run: ./scripts/cratesio-utils.py update-popular-crates
+
+      # This should be the last. So the registry locked is not earlier than references.
+      - name: Update flake
+        run: nix flake update
+
+      - name: Flake check
+        run: nix flake check --show-trace --no-update-lock-file
+
+      - name: Push changes
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add flake.lock crates-io-override/proc-macro.nix cache/Cargo.{lock,toml}
+          git commit -m "registry: update"
+          git push HEAD:${{ env.BRANCH }}
