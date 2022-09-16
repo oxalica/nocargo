@@ -13,7 +13,7 @@ jobs:
     name: Update registry
     runs-on: ubuntu-latest
     env:
-      CRATES_TOML_DIR: /crates-toml
+      CRATES_TOML_DIR: ./crates-toml
     steps:
       - name: Checkout
         uses: actions/checkout@v3.0.2
