@@ -183,6 +183,8 @@ rec {
 
       buildRustCrate' = info: args:
         let
+          # TODO: Proc macro crates should behave differently in dependency resolution.
+          # But this override is applied just before the `buildRustCrate` call.
           args' = args // (info.__override or lib.id) args;
           args'' = args' // (buildCrateOverrides.${toPkgId info} or lib.id) args';
         in

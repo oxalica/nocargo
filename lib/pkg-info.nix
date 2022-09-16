@@ -72,7 +72,7 @@ rec {
       value = mkPkgInfoFromRegistry mkSrc parsed
         // optionalAttrs (override != null) {
           # Proc macro crates behave differently in dependency resolution.
-          procMacro = override.procMacro or false;
+          procMacro = (override { inherit (parsed) version; features = { }; }).procMacro or false;
           __override = override;
         };
     };

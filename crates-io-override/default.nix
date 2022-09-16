@@ -1,6 +1,7 @@
 { lib, pkgs }:
 let
   inherit (lib) optionalAttrs listToAttrs;
+  inherit (builtins) compareVersions;
   procMacroOverrides =
     listToAttrs
       (map (name: {
@@ -19,5 +20,9 @@ procMacroOverrides //
   openssl-sys = { features, ... }: optionalAttrs (!(features ? vendored)) {
     nativeBuildInputs = [ pkg-config ];
     propagatedBuildInputs = [ openssl ];
+  };
+
+  proc-macro-hack = { version, ... }: {
+    procMacro = compareVersions version "0.5.0" >= 0;
   };
 }
