@@ -75,7 +75,7 @@
                 if toJSON got == toJSON expect then
                   okDrv
                 else
-                  pkgs.runCommandNoCC name {
+                  pkgs.runCommand name {
                     nativeBuildInputs = [ pkgs.jq ];
                     got = toJSON got;
                     expect = toJSON expect;

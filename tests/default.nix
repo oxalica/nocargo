@@ -62,7 +62,7 @@ let
   # Recursive Nix setup.
   # https://github.com/NixOS/nixpkgs/blob/e966ab3965a656efdd40b6ae0d8cec6183972edc/pkgs/top-level/make-tarball.nix#L45-L48
   mkGenInit = name: path:
-    pkgs.runCommandNoCC "gen-${name}" {
+    pkgs.runCommand "gen-${name}" {
       nativeBuildInputs = [ noc pkgs.nix ];
       checkFlags =
         mapAttrsToList (from: to: "--override-input ${from} ${to}") {
