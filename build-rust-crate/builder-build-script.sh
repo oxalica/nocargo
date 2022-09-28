@@ -63,7 +63,8 @@ runPhase() {
     fi
 
     for feat in $features; do
-        export "CARGO_FEATURE_${feat//-/_}"=1
+        feat_uppercase="${feat^^}"
+        export "CARGO_FEATURE_${feat_uppercase//-/_}"=1
     done
 
     export OUT_DIR="$out/rust-support/out-dir"
