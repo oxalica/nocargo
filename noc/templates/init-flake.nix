@@ -25,7 +25,7 @@
   };
 
   outputs = { nixpkgs, flake-utils, nocargo, ... }@inputs:
-    flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
+    flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ] (system:
       let
         ws = nocargo.lib.${system}.mkRustPackageOrWorkspace {
           src = ./.;
