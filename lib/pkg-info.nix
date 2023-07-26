@@ -54,7 +54,8 @@ rec {
     info = crate.${version} or null;
   in
     if !(index ? __registry_index) then
-      throw "Invalid registry. Do you forget `mkIndex` on registry paths?"
+      info
+      #throw "Invalid registry. Do you forget `mkIndex` on registry paths?"
     else if crate == null then
       throw "Package ${name} is not found in index"
     else if info == null then
