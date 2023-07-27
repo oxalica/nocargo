@@ -54,6 +54,7 @@ let
 
   # https://doc.rust-lang.org/cargo/reference/profiles.html
   profileToRustcFlags = p:
+    builtins.trace p (
     []
     ++ lib.optional (p.opt-level or 0 != 0) "-Copt-level=${toString p.opt-level}"
     ++ lib.optional (p.debug or false != false) "-Cdebuginfo=${if p.debug == true then "2" else toString p.debug}"
@@ -67,7 +68,7 @@ let
     ++ lib.optional (p.rpath or false) "-Crpath"
 
     ++ lib.optional (p.lto or false == false) "-Cembed-bitcode=no"
-    ;
+    );
 
   convertProfile = p: {
     buildFlags =
