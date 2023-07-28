@@ -52,6 +52,7 @@ configurePhase() {
                 needLinkDeps=1
                 ;;
             cdylib)
+                needLinkDeps=1
                 buildCdylib=1
                 ;;
             *)
