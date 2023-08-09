@@ -111,7 +111,7 @@ rec {
             name = toPkgId memberManifest.package;
             value = mkPkgInfoFromCargoToml memberManifest memberRoot;
           }
-          ) (if manifest ? workspace then members else [ "" ]));
+          ) ((if manifest ? workspace then members else []) ++ (if manifest ? package then [ "" ] else [])));
 
     in mkRustPackageSet {
       gitSrcInfos = mapAttrs (url: src:
