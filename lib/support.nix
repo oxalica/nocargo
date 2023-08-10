@@ -80,6 +80,7 @@ rec {
   mkRustPackageOrWorkspace =
     { defaultRegistries, pkgsBuildHost, buildRustCrate, stdenv }@default:
     { src # : Path
+    , lockPath ? null
     , gitSrcs ? {} # : Attrset Path
     , buildCrateOverrides ? {} # : Attrset (Attrset _)
     , extraRegistries ? {} # : Attrset Registry
@@ -97,7 +98,8 @@ rec {
       excluded = map sanitizeRelativePath (manifest.workspace.exclude or []);
       members = subtractLists excluded selected;
 
-      lock = fromTOML (readFile (src + "/Cargo.lock"));
+      lockSrc = if lockPath == null then (src + "/Cargo.lock") else lockPath;
+      lock = fromTOML (readFile lockSrc);
       # We don't distinguish between v1 and v2. But v3 is different from both.
       lockVersionSet = { lockVersion = lock.version or 2; };
 
@@ -110,8 +112,7 @@ rec {
           in {
             name = toPkgId memberManifest.package;
             value = mkPkgInfoFromCargoToml memberManifest memberRoot;
-          }
-          ) ((if manifest ? workspace then members else []) ++ (if manifest ? package then [ "" ] else [])));
+          }) ((if manifest ? workspace then members else []) ++ (if manifest ? package then [ "" ] else [])));
 
     in mkRustPackageSet {
       gitSrcInfos = mapAttrs (url: src:
