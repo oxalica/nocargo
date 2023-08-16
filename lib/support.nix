@@ -111,8 +111,9 @@ rec {
         listToAttrs
         (map (relativePath:
           let
-            memberRoot = self.nix-filter.lib { root = src + ("/" + relativePath); };
-            memberManifest = fromTOML (readFile (memberRoot + "/Cargo.toml")) // lockVersionSet;
+            memberSrc = src + ("/" + relativePath);
+            memberRoot = self.nix-filter.lib { root = memberSrc; };
+            memberManifest = fromTOML (readFile (memberSrc + "/Cargo.toml")) // lockVersionSet;
           in {
             name = toPkgId memberManifest.package;
             value = mkPkgInfoFromCargoToml memberManifest memberRoot;
