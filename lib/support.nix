@@ -112,7 +112,7 @@ rec {
         (map (relativePath:
           let
             memberSrc =  src + ("/" + relativePath);
-            memberRoot = self.nix-filter.lib { root = builtins.trace memberSrc memberSrc; };
+            memberRoot = if relativePath == "" then memberSrc else self.nix-filter.lib { root = builtins.trace memberSrc memberSrc; };
             memberManifest = fromTOML (readFile (memberSrc + "/Cargo.toml")) // lockVersionSet;
           in {
             name = toPkgId memberManifest.package;
