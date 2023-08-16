@@ -104,15 +104,19 @@ rec {
       lockVersionSet = { lockVersion = lock.version or 2; };
 
       localSrcInfos =
+        let
+          workspace_members = (if manifest ? workspace then members else []);
+          root_package = (if manifest ? package then [ "" ] else []);
+        in
         listToAttrs
         (map (relativePath:
           let
-            memberRoot = src + ("/" + relativePath);
+            memberRoot = self.nix-filter.lib { root = src + ("/" + relativePath); };
             memberManifest = fromTOML (readFile (memberRoot + "/Cargo.toml")) // lockVersionSet;
           in {
             name = toPkgId memberManifest.package;
             value = mkPkgInfoFromCargoToml memberManifest memberRoot;
-          }) ((if manifest ? workspace then members else []) ++ (if manifest ? package then [ "" ] else [])));
+          }) (workspace_members ++ root_package));
 
     in mkRustPackageSet {
       gitSrcInfos = mapAttrs (url: src:
