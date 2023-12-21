@@ -182,7 +182,7 @@ rec {
           (filter
             ({ kind, name, optional, targetEnabled, resolved, ... }@dep:
               targetEnabled && kind == selectKind
-              && (optional -> elem name features)
+              && (if features ? name then features.${name}.enabled else false)
               && (if resolved == null then throw "Unresolved dependency: ${toJSON dep}" else true)
               && (onlyLinks -> pkgSet.${resolved}.links != null))
             deps);
@@ -212,7 +212,7 @@ rec {
             depFilter = dep: dep.targetEnabled && dep.kind == "normal";
           };
 
-          pkgsBuild = mapAttrs (id: features: let info = pkgSet.${id}; in
+          pkgsBuild = mapAttrs (id: { features, ...}: let info = pkgSet.${id}; in
             if features != null then
               buildRustCrate' info {
                 inherit (info) version src procMacro;
@@ -228,7 +228,7 @@ rec {
               null
           ) resolvedBuildFeatures;
 
-          pkgs = mapAttrs (id: features: let info = pkgSet.${id}; in
+          pkgs = mapAttrs (id: { features, ...}: let info = pkgSet.${id}; in
             if features != null then
               buildRustCrate' info {
                 inherit (info) version src links procMacro;
