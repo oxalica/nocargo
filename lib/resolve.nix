@@ -171,41 +171,41 @@ in rec {
   #   };
   #   ...
   # }
-
-  enableFeature =
-    # Follows the output of `resolveDepsFromLock`.
-    pkgSet:
-    # pkgId of the dependency of the feature that is being enabled
-    pkgId:
-    # feature name
-    feat-name:
-    # whether this feature should enable or not the dependency
-    enable-dep:
+  enableFeature = {
+    pkgSet, # Follows the output of `resolveDepsFromLock`.
+      pkgId, # pkgId of the dependency of the feature that is being enabled
+      feat-name, # feature name
+      enable-dep, # whether this feature should enable or not the dependency
+      depFilter
+  }:
     let
       get-dependency = dep-name: lib.lists.findSingle
-        ({name, targetEnabled, ...}: name == dep-name && targetEnabled)
-        (throw "Could not find dependency '${dep-name}' for ${pkgId}.\nAvailable dependencies are ${concatStringsSep ", "  (map ({name, ...}: name) pkgSet.${pkgId}.dependencies)} ") # if none is found
-        (throw "Dependency '${dep-name}' is ambiguous. ") # if more than one is found
+        (dep: dep.name == dep-name && depFilter dep)
+        null # it might be a build-time only dependency, so no throwing errors.
+        (throw "Dependency '${dep-name}' is ambiguous.\nAvailable dependencies are ${toJSON pkgSet.${pkgId}.dependencies}") # if more than one is found
         pkgSet.${pkgId}.dependencies;
-      feature = parse-feature (builtins.trace "Enabling ${feat-name} for ${pkgId}" feat-name);
+      feature = parse-feature feat-name;
       enableDependency = dep-name:
-        let dep = get-dependency (builtins.trace "Trying to enable dependency ${dep-name}" dep-name);
-            default = (if dep.default_features then ["default"] else []); in
+        let dep = get-dependency dep-name; in
+        if dep != null then
           # we call resolveFeatures to also enable this dependency's dependencies
           # not only the dependency itself.
           resolveFeatures {
-            inherit pkgSet;
-            depFilter = ({targetEnabled, ...}: targetEnabled);
+            inherit pkgSet depFilter enable-dep;
             rootId = dep.resolved;
-            rootFeatures = (dep.features ++ default);
-          };
+            rootFeatures = (dep.features ++ (if dep.default_features then ["default"] else []));
+          }
+        else {};
     in
       if feature.type == "normal" then
         let features = pkgSet.${pkgId}.features;
             changes =
               # default can be implictly defined as empty.
               if (features ? ${feature.name}) || (feature.name == "default") then
-                enableFeatures pkgSet pkgId (features.${feature.name} or []) enable-dep
+                enableFeatures {
+                  inherit pkgSet pkgId enable-dep depFilter;
+                  features=(features.${feature.name} or []);
+                }
               else
                 # old style optional dependencies define features with the exact
                 # same name as the dependency. this is called implicit features.
@@ -222,20 +222,35 @@ in rec {
             
       else if feature.type == "dep-feature" then
         let dep = get-dependency feature.dep-name; in
-        enableFeature pkgSet dep.resolved feature.feat-name (enable-dep && !feature.optional)
+        if dep != null then let
+            enable-feature = enableFeature {
+              inherit pkgSet depFilter;
+              pkgId = dep.resolved;
+              feat-name = feature.feat-name;
+              enable-dep = (enable-dep && !feature.optional);
+            };
+            enable-dependency =
+              if !feature.optional then
+                enableDependency feature.dep-name
+              else
+                {};
+        in
+          mergeChanges [enable-feature enable-dependency]
+        else {}
+
       else if feature.type == "enable-dep" then
         enableDependency feature.dep-name
       else
         throw "Unrecognized feature type: ${feature.type}";
 
-  enableFeatures = pkgSet: pkgId: features: enabled:
+  enableFeatures = { pkgSet, pkgId, features, enable-dep, depFilter }:
     let
       # in order to create the `enabled` field even if `features` is empty.
       base = {${pkgId} = {
         features = [];
-        inherit enabled;
+        enabled = enable-dep;
       };};
-      changes = map (f: enableFeature pkgSet pkgId f enabled) features; in
+      changes = map (feat-name: enableFeature { inherit pkgSet pkgId feat-name enable-dep depFilter;}) features; in
       mergeChanges ( [base] ++ changes);
 
   # this function has a terrible time complexity.
@@ -267,17 +282,23 @@ in rec {
   , rootId
   # Eg. [ "foo" "bar/baz" ]
   , rootFeatures
+  , enable-dep ? true
   }:
     let
       deps = pkgSet.${rootId}.dependencies;
-      root-features = enableFeatures pkgSet rootId rootFeatures true;
-      deps-features = map (dep@{default_features, features, resolved, targetEnabled, ...}:
+      root-features = enableFeatures {
+        inherit pkgSet enable-dep depFilter;
+        pkgId = rootId;
+        features = rootFeatures;
+      };
+      deps-features = map (dep@{default_features, features, resolved, targetEnabled, optional, ...}:
         if depFilter dep && targetEnabled && resolved != null then 
           let default = if default_features then ["default"] else []; in
           resolveFeatures {
             inherit pkgSet depFilter;
             rootId = resolved;
             rootFeatures = (features ++ default);
+            enable-dep = optional -> enable-dep;
           }
         else {}) deps;
     in

@@ -181,9 +181,8 @@ rec {
           (dep: { rename = dep.rename or null; drv = pkgs.${dep.resolved}; })
           (filter
             ({ kind, name, optional, targetEnabled, resolved, ... }@dep:
-              targetEnabled && kind == selectKind
-              && (if features ? name then features.${name}.enabled else false)
-              && (if resolved == null then throw "Unresolved dependency: ${toJSON dep}" else true)
+              targetEnabled && kind == selectKind && resolved != null
+              && ((features ? ${resolved}) -> features.${resolved}.enabled)
               && (onlyLinks -> pkgSet.${resolved}.links != null))
             deps);
 
@@ -226,7 +225,7 @@ rec {
               }
             else
               null
-          ) resolvedBuildFeatures;
+          ) (builtins.trace "Build features: ${toJSON resolvedBuildFeatures}" resolvedBuildFeatures);
 
           pkgs = mapAttrs (id: { features, ...}: let info = pkgSet.${id}; in
             if features != null then
@@ -241,7 +240,7 @@ rec {
               }
             else
               null
-          ) resolvedNormalFeatures;
+          ) (builtins.trace "Normal features: ${toJSON resolvedNormalFeatures}" resolvedNormalFeatures);
         in
           pkgs.${rootId}
       ) {
