@@ -186,9 +186,9 @@ in rec {
         let filtered = filter (dep: dep.name == dep-name) pkgSet.${pkgId}.dependencies; in
         if (length filtered) > 0 then
           lib.lists.findSingle
-            (dep: dep.targetEnabled)
+            (dep: dep.targetEnabled && dep.kind == kind)
             null # if none is found
-            (throw "Dependency ${dep-name} is ambiguous for package ${pkgId}") # if more than 1 is found
+            (throw "Dependency ${dep-name} is ambiguous for package ${pkgId}.\n${toJSON filtered}") # if more than 1 is found
             filtered
         else
           throw "Cannot find depedency ${dep-name} for ${pkgId}.";
