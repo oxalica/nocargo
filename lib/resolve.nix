@@ -24,7 +24,7 @@ in rec {
   # }
   #
   # Currently (rust 1.63.0), there are 3 versions of the lock file.
-  # We supports V1, V2 and V3.
+  # We support V1, V2 and V3.
   # See:
   # https://github.com/rust-lang/cargo/blob/rust-1.63.0/src/cargo/core/resolver/resolve.rs#L56
   # https://github.com/rust-lang/cargo/blob/rust-1.63.0/src/cargo/core/resolver/encode.rs
@@ -45,7 +45,6 @@ in rec {
     ) {} pkgs;
 
     resolved = listToAttrs (map resolvePkg pkgs);
-
     resolvePkg = { name, version, source ? "", dependencies ? [], ... }@args: let
       info = getPkgInfo args;
       candidates = map findPkgId dependencies;
@@ -160,7 +159,7 @@ in rec {
         { type = "normal";
           name = feat;
         };
-
+        
   # Returns all changes done to the final features
   # done by enabling a single feature.
   #
@@ -176,26 +175,33 @@ in rec {
       pkgId, # pkgId of the dependency of the feature that is being enabled
       feat-name, # feature name
       enable-dep, # whether this feature should enable or not the dependency
-      depFilter
+      kind,
   }:
     let
-      get-dependency = dep-name: lib.lists.findSingle
-        (dep: dep.name == dep-name && depFilter dep)
-        null # it might be a build-time only dependency, so no throwing errors.
-        (throw "Dependency '${dep-name}' is ambiguous.\nAvailable dependencies are ${toJSON pkgSet.${pkgId}.dependencies}") # if more than one is found
-        pkgSet.${pkgId}.dependencies;
       feature = parse-feature feat-name;
+      # finds the dependency by name.
+      # returns null if exists but not targetEnabled.
+      # otherwise throws an error if not exists.
+      get-dependency = dep-name:
+        let filtered = filter (dep: dep.name == dep-name) pkgSet.${pkgId}.dependencies; in
+        if (length filtered) > 0 then
+          lib.lists.findSingle
+            (dep: dep.targetEnabled)
+            null # if none is found
+            (throw "Dependency ${dep-name} is ambiguous for package ${pkgId}") # if more than 1 is found
+            filtered
+        else
+          throw "Cannot find depedency ${dep-name} for ${pkgId}.";
       enableDependency = dep-name:
         let dep = get-dependency dep-name; in
-        if dep != null then
           # we call resolveFeatures to also enable this dependency's dependencies
           # not only the dependency itself.
-          resolveFeatures {
-            inherit pkgSet depFilter enable-dep;
-            rootId = dep.resolved;
-            rootFeatures = (dep.features ++ (if dep.default_features then ["default"] else []));
-          }
-        else {};
+        if dep != null then resolveFeatures {
+          inherit pkgSet enable-dep;
+          kind = dep.kind;
+          rootId = dep.resolved;
+          rootFeatures = (dep.features ++ (if dep.default_features then ["default"] else []));
+        } else {};
     in
       if feature.type == "normal" then
         let features = pkgSet.${pkgId}.features;
@@ -203,7 +209,7 @@ in rec {
               # default can be implictly defined as empty.
               if (features ? ${feature.name}) || (feature.name == "default") then
                 enableFeatures {
-                  inherit pkgSet pkgId enable-dep depFilter;
+                  inherit pkgSet pkgId enable-dep kind;
                   features=(features.${feature.name} or []);
                 }
               else
@@ -214,88 +220,111 @@ in rec {
         in
           mergeChanges [
             changes
-            { ${pkgId} = {
-                enabled = enable-dep;
-                features = [ feat-name ];
+            { ${kind} = {
+                ${pkgId} = {
+                  enabled = enable-dep;
+                  features = [ feat-name ];
+                };
               };
             }]
             
-      else if feature.type == "dep-feature" then
-        let dep = get-dependency feature.dep-name; in
+      else if feature.type == "dep-feature" then let
+        dep = get-dependency feature.dep-name; in
         if dep != null then let
-            enable-feature = enableFeature {
-              inherit pkgSet depFilter;
-              pkgId = dep.resolved;
-              feat-name = feature.feat-name;
-              enable-dep = (enable-dep && !feature.optional);
-            };
-            enable-dependency =
-              if !feature.optional then
-                enableDependency feature.dep-name
-              else
-                {};
+          enable-feature = enableFeature {
+            inherit pkgSet;
+            kind = dep.kind;
+            pkgId = dep.resolved;
+            feat-name = feature.feat-name;
+            enable-dep = (enable-dep && !feature.optional);
+          };
+          enable-dependency =
+            if !feature.optional then
+              enableDependency feature.dep-name
+            else
+              {};
         in
           mergeChanges [enable-feature enable-dependency]
         else {}
-
       else if feature.type == "enable-dep" then
         enableDependency feature.dep-name
       else
         throw "Unrecognized feature type: ${feature.type}";
 
-  enableFeatures = { pkgSet, pkgId, features, enable-dep, depFilter }:
+  enableFeatures = { pkgSet, pkgId, features, enable-dep, kind }:
     let
       # in order to create the `enabled` field even if `features` is empty.
-      base = {${pkgId} = {
-        features = [];
-        enabled = enable-dep;
-      };};
-      changes = map (feat-name: enableFeature { inherit pkgSet pkgId feat-name enable-dep depFilter;}) features; in
-      mergeChanges ( [base] ++ changes);
+      base = {
+        ${kind} = {
+          ${pkgId} = {
+            features = [];
+            enabled = enable-dep;
+          };
+        };
+      };
+      changes = map (feat-name: enableFeature { inherit pkgSet pkgId feat-name enable-dep kind;}) features; in
+      mergeChanges ([base] ++ changes);
 
-  # this function has a terrible time complexity.
-  # TODO: optimize.
+  # Merges different feature sets
+  # by concatenating the features and or'ing the enable field.
+  # Eg:
+  # mergeChanges [
+  # { "normal" = { "a" = { "features" = [ "foo" ]; enabled = false }; };
+  #   "build" = { "b" = { "features" = []; enabled = true; }; };
+  # }
+  # { "normal" = { "a" = { "features" = [ "bar" ]; enabled = true; }; }; }
+  # ]
+  # ->
+  # { "normal" = { "a" = { "features" = [ "foo" "bar" ]; enabled = true }; };
+  #   "build" = { "b" = { "features" = []; enabled = true; }; };
+  # }
+  # TODO: this function is horribly inneficient. rewrite it using better
+  #       functions for performance
   mergeChanges = changes:
-    lib.attrsets.foldAttrs ({ features, enabled }: acc:
-      { features = lib.lists.unique ( (acc.features or []) ++ features);
-        enabled = enabled || (acc.enabled or false); }
-    ) { } changes;
-  
+    lib.attrsets.foldAttrs (deps: outer-acc:
+      lib.attrsets.foldAttrs (args: acc:
+        { features = lib.lists.unique ((acc.features or []) ++ args.features);
+          enabled = args.enabled || (acc.enabled or false); }
+      ) {} [deps outer-acc]
+    ) {} changes;
   # Resolve all features.
-  # Note that dependent features like `foo/bar` are only available during resolution,
-  # and will be removed in result set.
   #
   # Returns:
   # {
-  #   "libc 0.1.0 (https://...)" = {
-  #     features = [ "default" "foo" "bar" ];
-  #     enabled = true;
-  #   };
+  #   "normal" = {
+  #     "libc 0.1.0 (https://...)" = {
+  #       features = [ "default" "foo" "bar" ];
+  #       enabled = true;
+  #     };
+  #     ...
+  #   "build" = {...};
+  #   "dev" = {...};
   # }
   resolveFeatures = {
   # Follows the layout of the output of `resolveDepsFromLock`.
     pkgSet
-  # Dependency edges (`{ name, kind, resolved, ... }`) will be checked by this filter.
-  # Only edges returning `true` are considered and propagated.
-  , depFilter ? dep: true
   # Eg. "libc 0.1.0 (https://...)"
   , rootId
   # Eg. [ "foo" "bar/baz" ]
   , rootFeatures
+  # Build kind: normal, build or dev.
+  , kind ? "normal"
+  # Wether these features should enable rootId or not.
   , enable-dep ? true
   }:
     let
       deps = pkgSet.${rootId}.dependencies;
       root-features = enableFeatures {
-        inherit pkgSet enable-dep depFilter;
+        inherit pkgSet enable-dep kind;
         pkgId = rootId;
         features = rootFeatures;
       };
       deps-features = map (dep@{default_features, features, resolved, targetEnabled, optional, ...}:
-        if depFilter dep && targetEnabled && resolved != null then 
+        if targetEnabled && resolved != null then 
           let default = if default_features then ["default"] else []; in
           resolveFeatures {
-            inherit pkgSet depFilter;
+            inherit pkgSet;
+            kind = dep.kind;
             rootId = resolved;
             rootFeatures = (features ++ default);
             enable-dep = optional -> enable-dep;

@@ -216,7 +216,7 @@ rec {
       procMacro = args.lib.proc-macro or false;
       dependencies =
         collectTargetDeps null args ++
-        mapAttrsToList collectTargetDeps target;
+        (lib.lists.flatten (mapAttrsToList collectTargetDeps target));
     };
 
   pkg-info-from-toml-tests = { assertEq, ... }: {

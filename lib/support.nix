@@ -201,15 +201,10 @@ rec {
           rootFeatures = if features != null then features
             else if pkgSet.${rootId}.features ? default then [ "default" ]
             else [];
-
-          resolvedBuildFeatures = resolveFeatures {
+          print = x: builtins.trace (toJSON x) x;
+          resolvedFeatures = print (resolveFeatures {
             inherit pkgSet rootId rootFeatures;
-            depFilter = dep: dep.targetEnabled && dep.kind == "normal" || dep.kind == "build";
-          };
-          resolvedNormalFeatures = resolveFeatures {
-            inherit pkgSet rootId rootFeatures;
-            depFilter = dep: dep.targetEnabled && dep.kind == "normal";
-          };
+          });
 
           pkgsBuild = mapAttrs (id: { features, ...}: let info = pkgSet.${id}; in
             if features != null then
@@ -225,7 +220,7 @@ rec {
               }
             else
               null
-          ) (builtins.trace "Build features: ${toJSON resolvedBuildFeatures}" resolvedBuildFeatures);
+          ) (resolvedFeatures.normal // resolvedFeatures.build);
 
           pkgs = mapAttrs (id: { features, ...}: let info = pkgSet.${id}; in
             if features != null then
@@ -240,7 +235,7 @@ rec {
               }
             else
               null
-          ) (builtins.trace "Normal features: ${toJSON resolvedNormalFeatures}" resolvedNormalFeatures);
+          ) resolvedFeatures.normal;
         in
           pkgs.${rootId}
       ) {
