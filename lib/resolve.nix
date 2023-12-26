@@ -185,7 +185,7 @@ in rec {
         let filtered = filter (dep: dep.name == dep-name) pkgSet.${pkgId}.dependencies; in
         if (length filtered) > 0 then
           lib.lists.findSingle
-            (dep: dep.targetEnabled && dep.kind == kind)
+            (dep: dep.targetEnabled && dep.kind == kind && dep.resolved != null)
             null # if none is found
             (throw "Dependency ${dep-name} is ambiguous for package ${pkgId}.\n${toJSON filtered}") # if more than 1 is found
             filtered
@@ -308,7 +308,6 @@ in rec {
   , rootId
   # Eg. [ "foo" "bar/baz" ]
   , rootFeatures
-  # Wether these features should enable rootId or not.
   }:
     let
       root-package = enablePackageWithFeatures {
@@ -350,9 +349,13 @@ in rec {
 
   update-feature-tests = { assertEq, ... }: let
     testUpdate = defs: features: expect: let
-      init = mapAttrs (k: v: false) defs;
-      out = enableFeature "pkgId" defs init features;
-      enabled = attrNames (filterAttrs (k: v: v) out);
+      pkgSet = { pkgId = { dependencies = []; features = defs; }; };
+      out = enablePackageWithFeatures {
+        inherit pkgSet features;
+        pkgId = "pkgId";
+        kind = "normal";
+      };
+      enabled = out.normal.pkgId;
     in
       assertEq enabled expect;
   in {

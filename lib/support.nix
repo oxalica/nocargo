@@ -201,7 +201,7 @@ rec {
           rootFeatures = if features != null then features
             else if pkgSet.${rootId}.features ? default then [ "default" ]
             else [];
-          showFeatures = x: builtins.traceVerbose "Features: ${toJSON x}" x;
+          showFeatures = x: builtins.trace "Features: ${toJSON x}" x;
           resolvedFeatures = showFeatures (resolveFeatures {
             inherit rootId pkgSet rootFeatures;
           });
