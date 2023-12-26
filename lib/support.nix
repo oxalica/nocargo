@@ -176,13 +176,13 @@ rec {
         }) info.dependencies;
       }) pkgSetRaw;
 
-      selectDeps = pkgs: deps: features: selectKind: onlyLinks:
+      selectDeps = pkgs: deps: enabled-deps: selectKind: onlyLinks:
         map
           (dep: { rename = dep.rename or null; drv = pkgs.${dep.resolved}; })
           (filter
-            ({ kind, name, optional, targetEnabled, resolved, ... }@dep:
-              targetEnabled && kind == selectKind && resolved != null
-              && ((features ? ${resolved}) -> features.${resolved}.enabled)
+            ({ kind, resolved, ... }:
+              kind == selectKind && resolved != null 
+              && enabled-deps ? ${resolved}
               && (onlyLinks -> pkgSet.${resolved}.links != null))
             deps);
 
@@ -201,40 +201,37 @@ rec {
           rootFeatures = if features != null then features
             else if pkgSet.${rootId}.features ? default then [ "default" ]
             else [];
-          print = x: builtins.trace (toJSON x) x;
-          resolvedFeatures = print (resolveFeatures {
-            inherit pkgSet rootId rootFeatures;
+          showFeatures = x: builtins.traceVerbose "Features: ${toJSON x}" x;
+          resolvedFeatures = showFeatures (resolveFeatures {
+            inherit rootId pkgSet rootFeatures;
           });
 
-          pkgsBuild = mapAttrs (id: { features, ...}: let info = pkgSet.${id}; in
-            if features != null then
+          buildDependencies = (resolvedFeatures.normal // resolvedFeatures.build);
+          normalDependencies = resolvedFeatures.normal;
+          
+          pkgsBuild = mapAttrs (id: features: let info = pkgSet.${id}; in
               buildRustCrate' info {
                 inherit (info) version src procMacro;
                 inherit features profile rustc;
                 pname = info.name;
                 capLints = if localSrcInfos ? id then null else "allow";
-                buildDependencies = selectDeps pkgsBuild info.dependencies features "build" false;
+                buildDependencies = selectDeps pkgsBuild info.dependencies buildDependencies "build" false;
                 # Build dependency's normal dependency is still build dependency.
-                dependencies = selectDeps pkgsBuild info.dependencies features "normal" false;
-                linksDependencies = selectDeps pkgsBuild info.dependencies features "normal" true;
+                dependencies = selectDeps pkgsBuild info.dependencies normalDependencies "normal" false;
+                linksDependencies = selectDeps pkgsBuild info.dependencies normalDependencies "normal" true;
               }
-            else
-              null
-          ) (resolvedFeatures.normal // resolvedFeatures.build);
+          ) buildDependencies; 
 
-          pkgs = mapAttrs (id: { features, ...}: let info = pkgSet.${id}; in
-            if features != null then
+          pkgs = mapAttrs (id: features: let info = pkgSet.${id}; in
               buildRustCrate' info {
                 inherit (info) version src links procMacro;
                 inherit features profile rustc;
                 pname = info.name;
                 capLints = if localSrcInfos ? id then null else "allow";
-                buildDependencies = selectDeps pkgsBuild info.dependencies features "build" false;
-                dependencies = selectDeps pkgs info.dependencies features "normal" false;
-                linksDependencies = selectDeps pkgs info.dependencies features "normal" true;
+                buildDependencies = selectDeps pkgsBuild info.dependencies buildDependencies "build" false;
+                dependencies = selectDeps pkgs info.dependencies normalDependencies "normal" false;
+                linksDependencies = selectDeps pkgs info.dependencies normalDependencies "normal" true;
               }
-            else
-              null
           ) resolvedFeatures.normal;
         in
           pkgs.${rootId}

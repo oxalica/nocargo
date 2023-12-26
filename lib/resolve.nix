@@ -174,7 +174,6 @@ in rec {
     pkgSet, # Follows the output of `resolveDepsFromLock`.
       pkgId, # pkgId of the dependency of the feature that is being enabled
       feat-name, # feature name
-      enable-dep, # whether this feature should enable or not the dependency
       kind,
   }:
     let
@@ -196,11 +195,11 @@ in rec {
         let dep = get-dependency dep-name; in
           # we call resolveFeatures to also enable this dependency's dependencies
           # not only the dependency itself.
-        if dep != null then resolveFeatures {
-          inherit pkgSet enable-dep;
+        if dep != null then enablePackageWithFeatures {
+          inherit pkgSet;
           kind = dep.kind;
-          rootId = dep.resolved;
-          rootFeatures = (dep.features ++ (if dep.default_features then ["default"] else []));
+          pkgId = dep.resolved;
+          features = (dep.features ++ (if dep.default_features then ["default"] else []));
         } else {};
     in
       if feature.type == "normal" then
@@ -209,8 +208,8 @@ in rec {
               # default can be implictly defined as empty.
               if (features ? ${feature.name}) || (feature.name == "default") then
                 enableFeatures {
-                  inherit pkgSet pkgId enable-dep kind;
-                  features=(features.${feature.name} or []);
+                  inherit pkgSet pkgId kind;
+                  features= features.${feature.name} or [];
                 }
               else
                 # old style optional dependencies define features with the exact
@@ -220,14 +219,12 @@ in rec {
         in
           mergeChanges [
             changes
-            { ${kind} = {
-                ${pkgId} = {
-                  enabled = enable-dep;
-                  features = [ feat-name ];
-                };
+            { ${kind}.${pkgId} = {
+                enabled = false;
+                features = [ feat-name ];
               };
             }]
-            
+
       else if feature.type == "dep-feature" then let
         dep = get-dependency feature.dep-name; in
         if dep != null then let
@@ -236,13 +233,9 @@ in rec {
             kind = dep.kind;
             pkgId = dep.resolved;
             feat-name = feature.feat-name;
-            enable-dep = (enable-dep && !feature.optional);
           };
           enable-dependency =
-            if !feature.optional then
-              enableDependency feature.dep-name
-            else
-              {};
+            if !feature.optional then enableDependency feature.dep-name else {};
         in
           mergeChanges [enable-feature enable-dependency]
         else {}
@@ -251,19 +244,9 @@ in rec {
       else
         throw "Unrecognized feature type: ${feature.type}";
 
-  enableFeatures = { pkgSet, pkgId, features, enable-dep, kind }:
-    let
-      # in order to create the `enabled` field even if `features` is empty.
-      base = {
-        ${kind} = {
-          ${pkgId} = {
-            features = [];
-            enabled = enable-dep;
-          };
-        };
-      };
-      changes = map (feat-name: enableFeature { inherit pkgSet pkgId feat-name enable-dep kind;}) features; in
-      mergeChanges ([base] ++ changes);
+  enableFeatures = { pkgSet, pkgId, features, kind }:
+    let changes = map (feat-name: enableFeature { inherit pkgSet pkgId feat-name kind;}) features; in
+      mergeChanges (changes);
 
   # Merges different feature sets
   # by concatenating the features and or'ing the enable field.
@@ -287,16 +270,34 @@ in rec {
           enabled = args.enabled || (acc.enabled or false); }
       ) {} [deps outer-acc]
     ) {} changes;
+
+  enablePackageWithFeatures = { pkgSet, pkgId, kind, features }: let
+    deps = pkgSet.${pkgId}.dependencies;
+    enable-features = map (f: enableFeature { inherit pkgSet pkgId kind; feat-name = f; }) features;
+    enable-dependencies = map (dep@{targetEnabled, resolved, default_features, features, optional, ... }:
+      if targetEnabled && resolved != null && !optional then
+        let default = if default_features then ["default"] else []; in
+        enablePackageWithFeatures {
+          inherit pkgSet;
+          kind = dep.kind;
+          pkgId = resolved;
+          features = (features ++ default);
+        }
+      else {}) deps;
+  in
+    mergeChanges (
+      enable-dependencies ++
+      enable-features ++
+      [ { ${kind}.${pkgId} = { features = []; enabled = true; }; } ]);
+
   # Resolve all features.
   #
   # Returns:
   # {
   #   "normal" = {
-  #     "libc 0.1.0 (https://...)" = {
-  #       features = [ "default" "foo" "bar" ];
-  #       enabled = true;
-  #     };
+  #     "libc 0.1.0 (https://...)" = [ "default" "foo" "bar" ];
   #     ...
+  #     };
   #   "build" = {...};
   #   "dev" = {...};
   # }
@@ -307,31 +308,19 @@ in rec {
   , rootId
   # Eg. [ "foo" "bar/baz" ]
   , rootFeatures
-  # Build kind: normal, build or dev.
-  , kind ? "normal"
   # Wether these features should enable rootId or not.
-  , enable-dep ? true
   }:
     let
-      deps = pkgSet.${rootId}.dependencies;
-      root-features = enableFeatures {
-        inherit pkgSet enable-dep kind;
+      root-package = enablePackageWithFeatures {
+        inherit pkgSet;
+        kind = "normal";
         pkgId = rootId;
         features = rootFeatures;
       };
-      deps-features = map (dep@{default_features, features, resolved, targetEnabled, optional, ...}:
-        if targetEnabled && resolved != null then 
-          let default = if default_features then ["default"] else []; in
-          resolveFeatures {
-            inherit pkgSet;
-            kind = dep.kind;
-            rootId = resolved;
-            rootFeatures = (features ++ default);
-            enable-dep = optional -> enable-dep;
-          }
-        else {}) deps;
     in
-      mergeChanges (deps-features ++ [root-features]);
+      mapAttrs
+        (kind: pkgs: mapAttrs (_: { features, ...}: features)          # return only the enabled features
+        (filterAttrs (_: {enabled, ...}: enabled) pkgs)) root-package; # only if it is enabled
 
   preprocess-feature-tests = { assertEq, ... }: let
     test = optionalDeps: featureDefs: expect:
