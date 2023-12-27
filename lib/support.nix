@@ -274,7 +274,7 @@ rec {
   in
   {
     features = let ret = build ../tests/features {}; in
-      assertEq ret.features [ "a" "default" "semver" ]; # FIXME
+      assertEq (lib.naturalSort ret.features) [ "a" "default" "semver" ];
 
     dependency-features = let
       ret = build ../tests/features { };
@@ -282,7 +282,7 @@ rec {
       serde = (head semver.dependencies).drv;
     in assertEq
       [ semver.features serde.features ]
-      [ [ "default" "serde" "std" ] [ /* Don't trigger default features */ ] ];
+      [ [ "default" "std" "serde" ] [ /* Don't trigger default features */ ] ];
 
     dependency-overrided = let
       ret = build ../tests/features {

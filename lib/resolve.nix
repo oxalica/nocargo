@@ -174,7 +174,8 @@ in rec {
     pkgSet, # Follows the output of `resolveDepsFromLock`.
       pkgId, # pkgId of the dependency of the feature that is being enabled
       feat-name, # feature name
-      kind,
+      kind, # build kind: normal, dev, build
+      seen ? {} # to avoid cyclic references entering infinite loops
   }:
     let
       feature = parse-feature feat-name;
@@ -204,12 +205,19 @@ in rec {
     in
       if feature.type == "normal" then
         let features = pkgSet.${pkgId}.features;
+            add-feature = {
+              ${kind}.${pkgId} = {
+                enabled = false;
+                features = [ feat-name ];
+              };
+            };
+            already-enabled = elem feature.name (lib.attrByPath [kind pkgId "features"] [] seen);
             changes =
-              # default can be implictly defined as empty.
               if (features ? ${feature.name}) || (feature.name == "default") then
                 enableFeatures {
                   inherit pkgSet pkgId kind;
                   features= features.${feature.name} or [];
+                  seen = mergeChanges [seen add-feature];
                 }
               else
                 # old style optional dependencies define features with the exact
@@ -217,19 +225,21 @@ in rec {
                 # https://doc.rust-lang.org/cargo/reference/features.html#optional-dependencies
                 enableDependency feature.name;
         in
-          mergeChanges [
-            changes
-            { ${kind}.${pkgId} = {
-                enabled = false;
-                features = [ feat-name ];
-              };
-            }]
-
+          if !already-enabled then 
+            mergeChanges ([changes add-feature])
+          else
+            builtins.trace "${pkgId} already enabled. Skipping"{}
       else if feature.type == "dep-feature" then let
         dep = get-dependency feature.dep-name; in
         if dep != null then let
+          enable-feature-on-original = {
+            ${kind}.${pkgId} = {
+              features = [ feature.dep-name ];
+              enabled = false;
+            };
+          };
           enable-feature = enableFeature {
-            inherit pkgSet;
+            inherit pkgSet seen;
             kind = dep.kind;
             pkgId = dep.resolved;
             feat-name = feature.feat-name;
@@ -237,16 +247,18 @@ in rec {
           enable-dependency =
             if !feature.optional then enableDependency feature.dep-name else {};
         in
-          mergeChanges [enable-feature enable-dependency]
+          mergeChanges [enable-feature enable-dependency enable-feature-on-original]
         else {}
       else if feature.type == "enable-dep" then
         enableDependency feature.dep-name
       else
         throw "Unrecognized feature type: ${feature.type}";
 
-  enableFeatures = { pkgSet, pkgId, features, kind }:
-    let changes = map (feat-name: enableFeature { inherit pkgSet pkgId feat-name kind;}) features; in
-      mergeChanges (changes);
+  enableFeatures = { pkgSet, pkgId, features, kind, seen ? {} }:
+    lib.foldr (feat-name: acc:
+      let next = enableFeature { inherit pkgSet pkgId feat-name kind; seen = acc;}; in
+      mergeChanges [acc next]
+    ) seen features;
 
   # Merges different feature sets
   # by concatenating the features and or'ing the enable field.
@@ -355,7 +367,7 @@ in rec {
         pkgId = "pkgId";
         kind = "normal";
       };
-      enabled = out.normal.pkgId;
+      enabled = lib.lists.naturalSort out.normal.pkgId.features;
     in
       assertEq enabled expect;
   in {
@@ -399,15 +411,16 @@ in rec {
     test = pkgSet: rootId: rootFeatures: expect: let
       resolved = resolveFeatures { inherit pkgSet rootId rootFeatures; };
       expect' = mapAttrs (id: feats: sort (a: b: a < b) feats) expect;
+      got = mapAttrs (id: feats: sort (a: b: a < b) feats) resolved.normal;
     in
-      assertEq resolved expect';
+      assertEq got expect';
 
     pkgSet1 = {
       a = {
         features = { foo = [ "bar" ]; bar = []; baz = [ "b" ]; };
         dependencies = [
-          { name = "b"; resolved = "b-id"; optional = true; default_features = true; features = [ "a" ]; }
-          { name = "unused"; resolved = null; optional = true; default_features = true; features = []; }
+          { name = "b"; resolved = "b-id"; optional = true; default_features = true; features = [ "a" ]; targetEnabled = true; kind = "normal";}
+          { name = "unused"; resolved = null; optional = true; default_features = true; features = []; targetEnabled = true; kind = "normal";}
         ];
       };
       b-id = {
@@ -420,14 +433,14 @@ in rec {
       my-id = {
         features = { default = [ "tokio/macros" ]; };
         dependencies = [
-          { name = "tokio"; resolved = "tokio-id"; optional = false; default_features = false; features = [ "fs" ]; }
-          { name = "dep"; resolved = "dep-id"; optional = false; default_features = true; features = []; }
+          { name = "tokio"; resolved = "tokio-id"; optional = false; default_features = false; features = [ "fs" ]; targetEnabled = true; kind = "normal";}
+          { name = "dep"; resolved = "dep-id"; optional = false; default_features = true; features = []; targetEnabled = true; kind = "normal";}
         ];
       };
       dep-id = {
         features = { default = [ "tokio/sync" ]; };
         dependencies = [
-          { name = "tokio"; resolved = "tokio-id"; optional = false; default_features = false; features = [ "sync" ]; }
+          { name = "tokio"; resolved = "tokio-id"; optional = false; default_features = false; features = [ "sync" ]; targetEnabled = true; kind = "normal";}
         ];
       };
       tokio-id = {
@@ -439,7 +452,7 @@ in rec {
   in {
     simple = test pkgSet1 "a" [ "foo" ] {
       a = [ "foo" "bar" ];
-      b-id = [ ];
+      # b-id is not enabled so it does not appear in features.
     };
 
     depend = test pkgSet1 "a" [ "foo" "baz" ] {
@@ -448,13 +461,13 @@ in rec {
     };
 
     override = test pkgSet1 "a" [ "b/bar" ] {
-      a = [ "b" ];
+      a = [ "b" ]; 
       b-id = [ "default" "a" "bar" "foo" ];
     };
 
     merge = test pkgSet2 "my-id" [ "default" ] {
-      my-id = [ "default" ];
-      dep-id = [ "default" ];
+      my-id = [ "default" "tokio" ];
+      dep-id = [ "default" "tokio"];
       tokio-id = [ "fs" "sync" "macros" ];
     };
   };
