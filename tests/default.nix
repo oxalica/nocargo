@@ -80,12 +80,12 @@ let
       chmod -R u+w src
       cd src
 
-      header "generating flake.nix"
+      echo "generating flake.nix"
       noc init
       cat flake.nix
       install -D flake.nix $out/flake.nix
 
-      header "checking with 'nix flake check'"
+      echo "checking with 'nix flake check'"
       export NIX_STATE_DIR=$TMPDIR/nix/var
       export NIX_PATH=
       export HOME=$TMPDIR
