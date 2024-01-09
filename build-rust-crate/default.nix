@@ -86,7 +86,7 @@ let
   };
 
   profile' = convertProfile profile;
-  buildProfile' = convertProfile (profile.build-override or {});
+  buildProfile' = convertProfile ({inherit (profile) name;} // (profile.build-override or {}));
 
   commonArgs = {
     inherit pname version src;

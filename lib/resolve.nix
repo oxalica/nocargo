@@ -186,7 +186,7 @@ in rec {
         let filtered = filter (dep: dep.name == dep-name) pkgSet.${pkgId}.dependencies; in
         if (length filtered) > 0 then
           lib.lists.findSingle
-            (dep: dep.targetEnabled && dep.kind == kind && dep.resolved != null)
+            (dep: dep.targetEnabled && dep.kind == "normal" && dep.resolved != null)
             null # if none is found
             (throw "Dependency ${dep-name} is ambiguous for package ${pkgId}.\n${toJSON filtered}") # if more than 1 is found
             filtered
@@ -200,7 +200,10 @@ in rec {
           inherit pkgSet;
           kind = dep.kind;
           pkgId = dep.resolved;
-          features = (dep.features ++ (if dep.default_features then ["default"] else []));
+          features = (dep.features
+                     ++ (if dep.default_features then ["default"] else [])
+                     ++ (lib.attrByPath [kind dep.resolved "features"] [] seen)
+          );
         } else {};
     in
       if feature.type == "normal" then
@@ -228,7 +231,7 @@ in rec {
           if !already-enabled then 
             mergeChanges ([changes add-feature])
           else
-            builtins.trace "${pkgId} already enabled. Skipping"{}
+            {}
       else if feature.type == "dep-feature" then let
         dep = get-dependency feature.dep-name; in
         if dep != null then let
@@ -331,7 +334,7 @@ in rec {
     in
       mapAttrs
         (kind: pkgs: mapAttrs (_: { features, ...}: features)          # return only the enabled features
-        (filterAttrs (_: {enabled, ...}: enabled) pkgs)) root-package; # only if it is enabled
+          (filterAttrs (_: {enabled, ...}: enabled) pkgs)) root-package; # only if it is enabled
 
   preprocess-feature-tests = { assertEq, ... }: let
     test = optionalDeps: featureDefs: expect:
