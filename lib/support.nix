@@ -108,16 +108,16 @@ rec {
           workspace_members = (if manifest ? workspace then members else []);
           root_package = (if manifest ? package then [ "" ] else []);
         in
-        listToAttrs
-        (map (relativePath:
-          let
-            memberSrc =  src + ("/" + relativePath);
-            memberRoot = if relativePath == "" then memberSrc else self.nix-filter.lib { root = memberSrc; };
-            memberManifest = fromTOML (readFile (memberSrc + "/Cargo.toml")) // lockVersionSet;
-          in {
-            name = toPkgId memberManifest.package;
-            value = mkPkgInfoFromCargoToml memberManifest memberRoot;
-          }) (workspace_members ++ root_package));
+          listToAttrs
+            (map (relativePath:
+              let
+                memberSrc =  src + ("/" + relativePath);
+                memberRoot = if relativePath == "" then memberSrc else self.nix-filter.lib { root = memberSrc; };
+                memberManifest = fromTOML (readFile (memberSrc + "/Cargo.toml")) // lockVersionSet;
+              in {
+                name = toPkgId memberManifest.package;
+                value = mkPkgInfoFromCargoToml memberManifest memberRoot;
+              }) (filter (relativePath: builtins.pathExists ("${src}/${relativePath}/Cargo.toml"))(workspace_members ++ root_package)));
 
     in mkRustPackageSet {
       gitSrcInfos = mapAttrs (url: src:

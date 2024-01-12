@@ -293,8 +293,7 @@ in rec {
           defer-feature
         else
           enableFeature {
-            inherit pkgSet feat-name;
-            inherit (dep) kind;
+            inherit pkgSet feat-name kind;
             seen = enable-dependency;
             pkgId = dep.resolved;
           }
