@@ -59,7 +59,12 @@ configurePhase() {
 
     convertCargoToml
 
-    globalEdition="$(jq --raw-output '.package.edition // ""' "$cargoTomlJson")"
+    if [[ -z "$edition" ]]; then
+        globalEdition="$(jq --raw-output '.package.edition // ""' "$cargoTomlJson")"
+    else
+        globalEdition="$edition"
+    fi
+    
     pkgName="$(jq --raw-output '.package.name // ""' "$cargoTomlJson")"
 
     # For packages with the 2015 edition, the default for auto-discovery is false if at least one target is
@@ -77,6 +82,7 @@ configurePhase() {
     while read -r name; do
         read -r path
         read -r binEdition
+
         addBin "$name" "$path" "$binEdition"
         # Don't strip whitespace.
     done < <(jq --raw-output '.bin // [] | .[] | .name // "", .path // "", .edition // ""' "$cargoTomlJson")

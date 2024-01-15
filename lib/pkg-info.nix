@@ -158,7 +158,7 @@ rec {
     };
 
   # Build a simplified crate into from a parsed Cargo.toml.
-  mkPkgInfoFromCargoToml = { lockVersion ? 3, package, features ? {}, target ? {}, ... }@args: src: let
+  mkPkgInfoFromCargoToml = { lockVersion ? 3, package, features ? {}, target ? {}, ... }@args: src: main-workspace: let
     transDeps = target: kind:
       mapAttrsToList (name: v:
         {
@@ -204,25 +204,40 @@ rec {
         });
 
     collectTargetDeps = target: { dependencies ? {}, dev-dependencies ? {}, build-dependencies ? {}, ... }:
-      transDeps target "normal" dependencies ++
-      transDeps target "dev" dev-dependencies ++
-      transDeps target "build" build-dependencies;
-
+      # per https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#inheriting-a-dependency-from-a-workspace
+      let inherit-dep-from-ws = dep_name: info:
+            if info ? "workspace" && info.workspace then
+              let ws-dep = main-workspace.dependencies.${dep_name}; in
+              if builtins.typeOf ws-dep == "string" then
+                { version = ws-dep; } // { optional = info.optional or false; features = info.features or []; }
+              else if builtins.typeOf ws-dep == "set" then
+                ws-dep // { optional = info.optional or false; features = ws-dep.features or [] ++ info.features or []; }
+              else
+                throw "Unrecognized dep type ${dep_name}"
+            else info;
+      in
+        transDeps target "normal" (mapAttrs inherit-dep-from-ws dependencies) ++
+        transDeps target "dev" (mapAttrs inherit-dep-from-ws dev-dependencies) ++
+        transDeps target "build" (mapAttrs inherit-dep-from-ws build-dependencies);
+    inherit-package-from-workspace = name: info:
+      if builtins.typeOf info == "set" && info ? "workspace" && info.workspace then
+        main-workspace.package.${name}
+      else
+        info;
   in
     {
-      inherit (package) name version;
       inherit src features;
       links = package.links or null;
       procMacro = args.lib.proc-macro or false;
       dependencies =
         collectTargetDeps null args ++
         (lib.lists.flatten (mapAttrsToList collectTargetDeps target));
-    };
+    } // (mapAttrs inherit-package-from-workspace package);
 
   pkg-info-from-toml-tests = { assertEq, ... }: {
     simple = let
       cargoToml = fromTOML (readFile ../tests/tokio-app/Cargo.toml);
-      info = mkPkgInfoFromCargoToml cargoToml "<src>";
+      info = mkPkgInfoFromCargoToml cargoToml "<src>" {};
 
       expected = {
         name = "tokio-app";
@@ -251,7 +266,7 @@ rec {
     build-deps =
       let
         cargoToml = fromTOML (readFile ../tests/build-deps/Cargo.toml);
-        info = mkPkgInfoFromCargoToml cargoToml "<src>";
+        info = mkPkgInfoFromCargoToml cargoToml "<src>" {};
         expected = {
           name = "build-deps";
           version = "0.0.0";

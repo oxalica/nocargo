@@ -107,6 +107,7 @@ rec {
         let
           workspace_members = (if manifest ? workspace then members else []);
           root_package = (if manifest ? package then [ "" ] else []);
+          main-workspace = if manifest ? "workspace" then manifest.workspace else {};
         in
           listToAttrs
             (map (relativePath:
@@ -116,12 +117,12 @@ rec {
                 memberManifest = fromTOML (readFile (memberSrc + "/Cargo.toml")) // lockVersionSet;
               in {
                 name = toPkgId memberManifest.package;
-                value = mkPkgInfoFromCargoToml memberManifest memberRoot;
-              }) (filter (relativePath: builtins.pathExists ("${src}/${relativePath}/Cargo.toml"))(workspace_members ++ root_package)));
+                value = mkPkgInfoFromCargoToml memberManifest memberRoot main-workspace;
+              }) (filter (relativePath: builtins.pathExists ("${src}/${relativePath}/Cargo.toml")) (workspace_members ++ root_package)));
 
     in mkRustPackageSet {
       gitSrcInfos = mapAttrs (url: src:
-        mkPkgInfoFromCargoToml (fromTOML (readFile (src + "/Cargo.toml")) // lockVersionSet) src
+        mkPkgInfoFromCargoToml (fromTOML (readFile (src + "/Cargo.toml")) // lockVersionSet) src {}
       ) gitSrcs;
 
       inherit lock profiles localSrcInfos buildRustCrate buildCrateOverrides registries rustc stdenv;
@@ -192,8 +193,20 @@ rec {
           # But this override is applied just before the `buildRustCrate` call.
           args' = args // (info.__override or lib.id) args;
           args'' = args' // (buildCrateOverrides.${toPkgId info} or lib.id) args';
+          workspace-inheritable-fields = [
+            "authors" "categories"
+            "description" "documentation"
+            "edition" "exclude"
+            "homepage" "include"
+            "keywords" "license"
+            "license-file" "publish"
+            "readme" "repository"
+            "rust-version" "version"
+          ];
+          args''' = (lib.filterAttrs (name: _: elem name workspace-inheritable-fields)
+            info) // args'';
         in
-          buildRustCrate args'';
+          buildRustCrate args''';
 
       mkPkg = profile: rootId: makeOverridable (
         { features }:

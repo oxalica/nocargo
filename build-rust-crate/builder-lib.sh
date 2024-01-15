@@ -25,7 +25,10 @@ configurePhase() {
         exit 1
     fi
 
-    edition="$(jq --raw-output '.package.edition // .lib.edition // ""' "$cargoTomlJson")"
+    if [[ -z "$edition" ]]; then
+        edition="$(jq --raw-output '.package.edition // .lib.edition // ""' "$cargoTomlJson")"
+    fi
+    
     if [[ -n "$edition" ]]; then
         buildFlagsArray+=(--edition="$edition")
     fi
