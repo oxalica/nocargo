@@ -184,18 +184,12 @@ in rec {
       ) {} [deps outer-acc]
     ) {} changes;
 
-
-
-  get-dependency = { pkgSet, pkgId, dep-name}:
-    let filtered = filter (dep: dep.name == dep-name) pkgSet.${pkgId}.dependencies; in
-    if (length filtered) > 0 then
-      lib.lists.findSingle
-        (dep: dep.targetEnabled && dep.kind == "normal" && dep.resolved != null)
-        null # if none is found
-        (throw "Dependency ${dep-name} is ambiguous for package ${pkgId}.\n${toJSON filtered}") # if more than 1 is found
-        filtered
-    else
-      throw "Cannot find depedency ${dep-name} for ${pkgId}.";
+  forall-deps-with-same-name = { pkgSet, pkgId, dep-name, seen, kind }: f: 
+    let deps = filter (dep: dep.name == dep-name && dep.resolved != null && dep.targetEnabled && (kind == "dev" -> dep.kind == kind)) pkgSet.${pkgId}.dependencies; in
+    lib.foldl' (acc: dep:
+      let next = f dep; in
+      mergeChanges [acc next]
+    ) seen deps;
   
   # Activates a single feature.
   # {
@@ -227,26 +221,23 @@ in rec {
         }
       else if feature.type == "enable-dep" then
         enableDependency {
-          inherit pkgSet pkgId seen;
+          inherit pkgSet pkgId seen kind;
           inherit (feature) dep-name;
         }
       else
         throw "Unrecognized feature type: ${feature.type}";
 
-   enableDependency = {pkgSet, pkgId, dep-name, seen }:
-    let dep = get-dependency { inherit pkgSet pkgId dep-name;}; in
-    if dep != null then let
-      add-default = if dep.default_features && (pkgSet.${dep.resolved}.features ? "default") then ["default"] else [];
-      deferred-features = lib.attrByPath [dep.kind dep.resolved "deferred"] [] seen;
-    in
-      enablePackage {
-        inherit pkgSet seen;
-        kind = dep.kind;
-        pkgId = dep.resolved;
-        features = deferred-features ++ dep.features ++ add-default;
-      }
-    else
-      seen;
+   enableDependency = { pkgSet, pkgId, dep-name, seen, kind }:
+     forall-deps-with-same-name { inherit pkgSet pkgId dep-name seen kind; } (dep: let
+       add-default = if dep.default_features && (pkgSet.${dep.resolved}.features ? "default") then ["default"] else [];
+       deferred-features = lib.attrByPath [dep.kind dep.resolved "deferred"] [] seen;
+     in
+       enablePackage {
+         inherit pkgSet seen;
+         inherit (dep) kind;
+         pkgId = dep.resolved;
+         features = deferred-features ++ dep.features ++ add-default;
+       });
   
    enableFeatureRecursively = {pkgSet, pkgId, kind, seen, feat-name}: let
      features = pkgSet.${pkgId}.features;
@@ -264,7 +255,7 @@ in rec {
          # same name as the dependency. this is called implicit features.
          # https://doc.rust-lang.org/cargo/reference/features.html#optional-dependencies
          enableDependency {
-           inherit pkgSet pkgId;
+           inherit pkgSet pkgId kind;
            seen = add-feature;
            dep-name = feat-name;
          };
@@ -275,30 +266,29 @@ in rec {
        seen;
 
   enableDepFeature = { pkgSet, pkgId, kind, seen, feat-name, dep-name, weak }:
-    let dep = get-dependency { inherit pkgSet pkgId dep-name; }; in
-    if dep != null then
+    forall-deps-with-same-name { inherit pkgSet pkgId dep-name seen kind; } (dep:
       let
         defer-feature = mergeChanges [seen { ${dep.kind}.${dep.resolved}.deferred = [feat-name]; }];
-        feature-with-dep-name-on-original = enableFeature {
+        enable-feature-with-dep-name-on-pkg = enableFeature {
           inherit pkgSet pkgId kind seen;
           feat-name = dep-name;
         };
-        enable-dependency = if !weak then
+        enable-dependency = if !weak && dep.optional then
           enableDependency {
-            inherit pkgSet pkgId dep-name;
-            seen = feature-with-dep-name-on-original;
-          } else feature-with-dep-name-on-original;
+            inherit pkgSet pkgId dep-name kind;
+            seen = enable-feature-with-dep-name-on-pkg;
+          } else enable-feature-with-dep-name-on-pkg;
       in
         if weak && !(lib.attrByPath [dep.kind dep.resolved "enabled"] false seen) && dep.optional then
           defer-feature
         else
           enableFeature {
-            inherit pkgSet feat-name kind;
+            inherit pkgSet feat-name;
+            inherit (dep) kind;
             seen = enable-dependency;
             pkgId = dep.resolved;
           }
-    else
-      seen;
+    ) ;
   
   enableFeatures = { pkgSet, pkgId, kind, seen, features }:
     foldl' (acc: feat-name: 
@@ -319,7 +309,7 @@ in rec {
       in
         enablePackage {
           inherit pkgSet;
-          kind = dep.kind;
+          inherit (dep) kind;
           pkgId = dep.resolved;
           features = dep.features ++ default;
           seen = acc;
@@ -352,13 +342,13 @@ in rec {
   , rootFeatures
   }:
     let
-      root-package = enablePackage {
+      root-package = lib.traceValSeq (enablePackage {
         inherit pkgSet;
         kind = "normal";
         pkgId = rootId;
         features = rootFeatures;
         seen = {};
-      };
+      });
     in
       mapAttrs
         (kind: pkgs: mapAttrs (_: { features, ...}: features)            # return only the enabled features
