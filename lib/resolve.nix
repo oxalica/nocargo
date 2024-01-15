@@ -2,9 +2,9 @@
 let
   inherit (builtins) readFile match fromTOML toJSON;
   inherit (lib)
-    foldl' concatStringsSep listToAttrs filter elemAt length sort elem flatten
+    foldl' listToAttrs filter elemAt length sort elem flatten
     hasPrefix substring
-    attrValues mapAttrs attrNames filterAttrs assertMsg;
+    attrValues mapAttrs filterAttrs assertMsg;
   inherit (self.semver) parseSemverReq;
   inherit (self.pkg-info) mkPkgInfoFromCargoToml toPkgId sanitizeDep;
 in rec {
@@ -65,7 +65,7 @@ in rec {
           filter (pkg:
             (lockVersion != null -> pkg.version == lockVersion) &&
             (lockSource != null -> pkg.source or null == lockSource))
-          (pkgsByName.${lockName} or []);
+            (pkgsByName.${lockName} or []);
         candidateCnt = length candidates;
       in
         if candidateCnt == 0 then
@@ -130,16 +130,16 @@ in rec {
         depFeat = elemAt m 2;
       in if elem feat prev then
         prev
-      else if defs' ? ${feat} then
-        foldl' go ([ feat ] ++ prev) defs'.${feat}
-      else if hasPrefix "dep:" feat then
-        [ { dep = substring 4 (-1) feat; } ] ++ prev
-      else if m == null then
-        [ feat ] ++ prev
-      else if isWeak then
-        [ { dep = depName; feat = depFeat; } ] ++ prev
-      else
-        [ { dep = depName; } { dep = depName; feat = depFeat; } ] ++ prev;
+         else if defs' ? ${feat} then
+           foldl' go ([ feat ] ++ prev) defs'.${feat}
+         else if hasPrefix "dep:" feat then
+           [ { dep = substring 4 (-1) feat; } ] ++ prev
+         else if m == null then
+           [ feat ] ++ prev
+         else if isWeak then
+           [ { dep = depName; feat = depFeat; } ] ++ prev
+         else
+           [ { dep = depName; } { dep = depName; feat = depFeat; } ] ++ prev;
     fixed = mapAttrs (feat: _: go [ ] feat) defs';
   in
     fixed;
@@ -184,18 +184,26 @@ in rec {
       ) {} [deps outer-acc]
     ) {} changes;
 
+  # Folds a function `f` through all the dependencies of a package that
+  # are named dep-name and are enabled for the build. This is used to
+  # be able to enable different kinds (and different targets) all in one
+  # fell swoop.
   forall-deps-with-same-name = { pkgSet, pkgId, dep-name, seen, kind }: f: 
-    let deps = filter (dep: dep.name == dep-name && dep.resolved != null && dep.targetEnabled && (kind == "dev" -> dep.kind == kind)) pkgSet.${pkgId}.dependencies; in
+    let deps = filter (dep: dep.name == dep-name &&
+                            dep.resolved != null &&
+                            dep.targetEnabled &&
+                            (kind == "dev" -> dep.kind == kind) # FIXME: is this correct?
+        ) pkgSet.${pkgId}.dependencies; in
     lib.foldl' (acc: dep:
       let next = f dep; in
       mergeChanges [acc next]
     ) seen deps;
   
-  # Activates a single feature.
+  # Activates a single feature, and all the changes made by it.
+  # It may enable other packages, as well as other features.
   # {
   #   "libc 0.1.0 (https://...)" = {
-  #     features = [ "default" "foo" "bar" ];
-  #     enabled = true;
+  #     features = [ "bar" ];
   #   };
   #   ...
   # }
@@ -214,7 +222,7 @@ in rec {
           inherit pkgSet pkgId kind seen;
           inherit (feature) feat-name;
         }
-      else if feature.type == "dep-feature" then 
+      else if feature.type == "dep-feature" then
         enableDepFeature {
           inherit pkgSet pkgId kind seen;
           inherit (feature) dep-name feat-name weak;
@@ -227,44 +235,50 @@ in rec {
       else
         throw "Unrecognized feature type: ${feature.type}";
 
-   enableDependency = { pkgSet, pkgId, dep-name, seen, kind }:
-     forall-deps-with-same-name { inherit pkgSet pkgId dep-name seen kind; } (dep: let
-       add-default = if dep.default_features && (pkgSet.${dep.resolved}.features ? "default") then ["default"] else [];
-       deferred-features = lib.attrByPath [dep.kind dep.resolved "deferred"] [] seen;
-     in
-       enablePackage {
-         inherit pkgSet seen;
-         inherit (dep) kind;
-         pkgId = dep.resolved;
-         features = deferred-features ++ dep.features ++ add-default;
-       });
-  
-   enableFeatureRecursively = {pkgSet, pkgId, kind, seen, feat-name}: let
-     features = pkgSet.${pkgId}.features;
-     add-feature = mergeChanges [seen { ${kind}.${pkgId}.features = [ feat-name ]; }];
-     already-enabled = elem feat-name (lib.attrByPath [kind pkgId "features"] [] seen);
-     changes =
-       if features ? ${feat-name} then
-         enableFeatures {
-           inherit pkgSet pkgId kind;
-           features = features.${feat-name};
-           seen = add-feature;
-         }
-       else
-         # old style optional dependencies define features with the exact
-         # same name as the dependency. this is called implicit features.
-         # https://doc.rust-lang.org/cargo/reference/features.html#optional-dependencies
-         enableDependency {
-           inherit pkgSet pkgId kind;
-           seen = add-feature;
-           dep-name = feat-name;
-         };
-   in
-     if !already-enabled then 
-       changes
-     else
-       seen;
+  # Enables all optional dependencies of package `pkgId` named `dep-name`.
+  # This means same dependency for different build kinds, as they appear as different dependencies on
+  # the dependency graph.
+  enableDependency = { pkgSet, pkgId, dep-name, seen, kind }:
+    forall-deps-with-same-name { inherit pkgSet pkgId dep-name seen kind; } (dep: let
+      add-default = if dep.default_features && (pkgSet.${dep.resolved}.features ? "default") then ["default"] else [];
+      deferred-features = lib.attrByPath [dep.kind dep.resolved "deferred"] [] seen;
+    in
+      enablePackage {
+        inherit pkgSet seen;
+        inherit (dep) kind;
+        pkgId = dep.resolved;
+        features = deferred-features ++ dep.features ++ add-default;
+      });
 
+  # Enable the feature `feat-name` together with all the other features enabled by it.
+  enableFeatureRecursively = {pkgSet, pkgId, kind, seen, feat-name}: let
+    features = pkgSet.${pkgId}.features;
+    add-feature = mergeChanges [seen { ${kind}.${pkgId}.features = [ feat-name ]; }];
+    already-enabled = elem feat-name (lib.attrByPath [kind pkgId "features"] [] seen);
+    changes =
+      if features ? ${feat-name} then
+        enableFeatures {
+          inherit pkgSet pkgId kind;
+          features = features.${feat-name};
+          seen = add-feature;
+        }
+      else
+        # old style optional dependencies define features with the exact
+        # same name as the dependency. this is called implicit features.
+        # https://doc.rust-lang.org/cargo/reference/features.html#optional-dependencies
+        enableDependency {
+          inherit pkgSet pkgId kind;
+          seen = add-feature;
+          dep-name = feat-name;
+        };
+  in
+    if !already-enabled then 
+      changes
+    else
+      seen;
+
+
+  # Enable a dependency feature, of the form dep-name?/feat-name
   enableDepFeature = { pkgSet, pkgId, kind, seen, feat-name, dep-name, weak }:
     forall-deps-with-same-name { inherit pkgSet pkgId dep-name seen kind; } (dep:
       let
@@ -289,13 +303,17 @@ in rec {
             pkgId = dep.resolved;
           }
     ) ;
-  
+
+  # Enable the feature list `features` for pkgId.
   enableFeatures = { pkgSet, pkgId, kind, seen, features }:
     foldl' (acc: feat-name: 
       let next = enableFeature { inherit pkgSet pkgId feat-name kind; seen = acc;}; in
       mergeChanges [acc next]
     ) seen features;
-  
+
+  # Enables a package with `features` enabled, together with
+  # it's non-optional dependencies. Only cycles through the dependencies
+  # if it hasn't already been enabled, otherwise only enables the features.
   enablePackage = { pkgSet, pkgId, kind, features, seen }: let
     deps = pkgSet.${pkgId}.dependencies;
     already-enabled = lib.attrByPath [kind pkgId "enabled"] false seen;
@@ -334,21 +352,21 @@ in rec {
   #   "dev" = {...};
   # }
   resolveFeatures = {
-  # Follows the layout of the output of `resolveDepsFromLock`.
+    # Follows the layout of the output of `resolveDepsFromLock`.
     pkgSet
-  # Eg. "libc 0.1.0 (https://...)"
-  , rootId
-  # Eg. [ "foo" "bar/baz" ]
-  , rootFeatures
+    # Eg. "libc 0.1.0 (https://...)"
+    , rootId
+    # Eg. [ "foo" "bar/baz" ]
+    , rootFeatures
   }:
     let
-      root-package = lib.traceValSeq (enablePackage {
+      root-package = enablePackage {
         inherit pkgSet;
         kind = "normal";
         pkgId = rootId;
         features = rootFeatures;
         seen = {};
-      });
+      };
     in
       mapAttrs
         (kind: pkgs: mapAttrs (_: { features, ...}: features)            # return only the enabled features
@@ -387,6 +405,7 @@ in rec {
         inherit pkgSet features;
         pkgId = "pkgId";
         kind = "normal";
+        seen = {};
       };
       enabled = lib.lists.naturalSort out.normal.pkgId.features;
     in
@@ -400,33 +419,33 @@ in rec {
     simple6 = testUpdate { a = []; b = []; } [ "a" "b" "a" ] [ "a" "b" ];
 
   } // (let defs = { a = []; b = [ "a" ]; }; in {
-    link1 = testUpdate defs [ "a" ] [ "a" ];
-    link2 = testUpdate defs [ "b" "a" ] [ "a" "b" ];
-    link3 = testUpdate defs [ "b" ] [ "a" "b" ];
-    link4 = testUpdate defs [ "b" "a" ] [ "a" "b" ];
-    link5 = testUpdate defs [ "b" "b" ] [ "a" "b" ];
+              link1 = testUpdate defs [ "a" ] [ "a" ];
+              link2 = testUpdate defs [ "b" "a" ] [ "a" "b" ];
+              link3 = testUpdate defs [ "b" ] [ "a" "b" ];
+              link4 = testUpdate defs [ "b" "a" ] [ "a" "b" ];
+              link5 = testUpdate defs [ "b" "b" ] [ "a" "b" ];
 
-  }) // (let defs = { a = []; b = [ "a" ]; c = [ "a" ]; }; in {
-    common1 = testUpdate defs [ "a" ] [ "a" ];
-    common2 = testUpdate defs [ "b" ] [ "a" "b" ];
-    common3 = testUpdate defs [ "a" "b" ] [ "a" "b" ];
-    common4 = testUpdate defs [ "b" "a" ] [ "a" "b" ];
-    common5 = testUpdate defs [ "b" "c" ] [ "a" "b" "c" ];
-    common6 = testUpdate defs [ "a" "b" "c" ] [ "a" "b" "c" ];
-    common7 = testUpdate defs [ "b" "c" "b" ] [ "a" "b" "c" ];
+            }) // (let defs = { a = []; b = [ "a" ]; c = [ "a" ]; }; in {
+                         common1 = testUpdate defs [ "a" ] [ "a" ];
+                         common2 = testUpdate defs [ "b" ] [ "a" "b" ];
+                         common3 = testUpdate defs [ "a" "b" ] [ "a" "b" ];
+                         common4 = testUpdate defs [ "b" "a" ] [ "a" "b" ];
+                         common5 = testUpdate defs [ "b" "c" ] [ "a" "b" "c" ];
+                         common6 = testUpdate defs [ "a" "b" "c" ] [ "a" "b" "c" ];
+                         common7 = testUpdate defs [ "b" "c" "b" ] [ "a" "b" "c" ];
 
-  }) // (let defs = { a = [ "b" "c" ]; b = [ "d" "e" ]; c = [ "f" "g"]; d = []; e = []; f = []; g = []; }; in {
-    tree1 = testUpdate defs [ "a" ] [ "a" "b" "c" "d" "e" "f" "g" ];
-    tree2 = testUpdate defs [ "b" ] [ "b" "d" "e" ];
-    tree3 = testUpdate defs [ "d" ] [ "d" ];
-    tree4 = testUpdate defs [ "d" "b" "g" ] [ "b" "d" "e" "g" ];
-    tree5 = testUpdate defs [ "c" "e" "f" ] [ "c" "e" "f" "g" ];
+                       }) // (let defs = { a = [ "b" "c" ]; b = [ "d" "e" ]; c = [ "f" "g"]; d = []; e = []; f = []; g = []; }; in {
+                                    tree1 = testUpdate defs [ "a" ] [ "a" "b" "c" "d" "e" "f" "g" ];
+                                    tree2 = testUpdate defs [ "b" ] [ "b" "d" "e" ];
+                                    tree3 = testUpdate defs [ "d" ] [ "d" ];
+                                    tree4 = testUpdate defs [ "d" "b" "g" ] [ "b" "d" "e" "g" ];
+                                    tree5 = testUpdate defs [ "c" "e" "f" ] [ "c" "e" "f" "g" ];
 
-  }) // (let defs = { a = [ "b" ]; b = [ "c" ]; c = [ "b" ]; }; in {
-    cycle1 = testUpdate defs [ "b" ] [ "b" "c" ];
-    cycle2 = testUpdate defs [ "c" ] [ "b" "c" ];
-    cycle3 = testUpdate defs [ "a" ] [ "a" "b" "c" ];
-  });
+                                  }) // (let defs = { a = [ "b" ]; b = [ "c" ]; c = [ "b" ]; }; in {
+                                               cycle1 = testUpdate defs [ "b" ] [ "b" "c" ];
+                                               cycle2 = testUpdate defs [ "c" ] [ "b" "c" ];
+                                               cycle3 = testUpdate defs [ "a" ] [ "a" "b" "c" ];
+                                             });
 
   resolve-feature-tests = { assertEq, ... }: let
     test = pkgSet: rootId: rootFeatures: expect: let
@@ -524,8 +543,8 @@ in rec {
             name = "testt";
             version = "0.1.0";
             dependencies = [
-             "libc 0.1.12"
-             "libc 0.2.95 (registry+https://github.com/rust-lang/crates.io-index)"
+              "libc 0.1.12"
+              "libc 0.2.95 (registry+https://github.com/rust-lang/crates.io-index)"
             ];
           }
         ];
@@ -580,10 +599,11 @@ in rec {
 
     workspace-virtual = let
       lock = fromTOML (readFile ../tests/workspace-virtual/Cargo.lock);
+      cargoTomlWs = fromTOML (readFile ../test/workspace-virtual/Cargo.toml);
       cargoTomlFoo = fromTOML (readFile ../tests/workspace-virtual/crates/foo/Cargo.toml);
       cargoTomlBar = fromTOML (readFile ../tests/workspace-virtual/crates/bar/Cargo.toml);
-      infoFoo = mkPkgInfoFromCargoToml cargoTomlFoo "<src>";
-      infoBar = mkPkgInfoFromCargoToml cargoTomlBar "<src>";
+      infoFoo = mkPkgInfoFromCargoToml cargoTomlFoo "<src>" cargoTomlWs;
+      infoBar = mkPkgInfoFromCargoToml cargoTomlBar "<src>" cargoTomlWs;
 
       getCrateInfo = args:
         if args ? source then
@@ -597,36 +617,38 @@ in rec {
 
       resolved = resolveDepsFromLock getCrateInfo lock;
     in
-    assertEq resolved {
-      bar = {
-        dependencies = [];
-        features = {};
-        links = null;
-        name = "bar";
-        procMacro = false;
-        src = "<src>";
-        version = "0.1.0";
-      };
-      foo = {
-        dependencies = [ {
-          default_features = true;
-          features = [];
-          kind = "normal";
+      assertEq resolved {
+        bar = {
+          dependencies = [];
+          features = {};
+          links = null;
           name = "bar";
-          optional = false;
-          package = "bar";
-          req = null;
-          resolved = "bar";
-          source = null;
-          target = null;
-        } ];
-        features = {};
-        links = null;
-        name = "foo";
-        procMacro = false;
-        src = "<src>";
-        version = "0.1.0";
+          procMacro = false;
+          src = "<src>";
+          version = "0.1.0";
+          edition = "2018";
+        };
+        foo = {
+          dependencies = [ {
+            default_features = true;
+            features = [];
+            kind = "normal";
+            name = "bar";
+            optional = false;
+            package = "bar";
+            req = null;
+            resolved = "bar";
+            source = null;
+            target = null;
+          } ];
+          edition = "2018";
+          features = {};
+          links = null;
+          name = "foo";
+          procMacro = false;
+          src = "<src>";
+          version = "0.1.0";
+        };
       };
-    };
   };
 }

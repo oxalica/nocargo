@@ -242,6 +242,7 @@ rec {
       expected = {
         name = "tokio-app";
         version = "0.0.0";
+        edition = "2018";
         features = { };
         src = "<src>";
         links = null;
@@ -269,6 +270,7 @@ rec {
         info = mkPkgInfoFromCargoToml cargoToml "<src>" {};
         expected = {
           name = "build-deps";
+          edition = "2015";
           version = "0.0.0";
           features = { };
           src = "<src>";

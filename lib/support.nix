@@ -294,7 +294,7 @@ rec {
       serde = (head semver.dependencies).drv;
     in assertEq
       [ semver.features serde.features ]
-      [ [ "default" "std" "serde" ] [ /* Don't trigger default features */ ] ];
+      [ ["serde" "std" "default"] [ /* Don't trigger default features */ ] ];
 
     dependency-overrided = let
       ret = build ../tests/features {
