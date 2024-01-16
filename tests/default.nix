@@ -66,7 +66,7 @@ let
       nativeBuildInputs = [ noc pkgs.nix ];
       checkFlags =
         mapAttrsToList (from: to: "--override-input ${from} ${to}") {
-          inherit (inputs) nixpkgs flake-utils;
+          inherit (inputs) nixpkgs flake-utils nix-filter;
           nocargo = self;
           "nocargo/registry-crates-io" = inputs.registry-crates-io;
           registry-1 = inputs.registry-crates-io;

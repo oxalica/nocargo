@@ -9,6 +9,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
     flake-utils.url = "github:numtide/flake-utils";
+    nix-filter.url = "github:numtide/nix-filter";
     nocargo = {
       url = "github:oxalica/nocargo";
       inputs.nixpkgs.follows = "nixpkgs";

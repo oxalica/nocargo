@@ -118,7 +118,7 @@ rec {
               in {
                 name = toPkgId memberManifest.package;
                 value = mkPkgInfoFromCargoToml memberManifest memberRoot main-workspace;
-              }) (filter (relativePath: builtins.pathExists ("${src}/${relativePath}/Cargo.toml")) (workspace_members ++ root_package)));
+              }) (filter (relativePath: builtins.pathExists (src + ("/" + (relativePath + "/Cargo.toml")))) (workspace_members ++ root_package)));
 
     in mkRustPackageSet {
       gitSrcInfos = mapAttrs (url: src:
