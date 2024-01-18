@@ -108,6 +108,8 @@ rec {
           workspace_members = (if manifest ? workspace then members else []);
           root_package = (if manifest ? package then [ "" ] else []);
           main-workspace = if manifest ? "workspace" then manifest.workspace else {};
+          maybe-crates = lib.attrNames (lib.filterAttrs (path: type: type == "directory") (builtins.readDir src));
+          is-directory-crate = relativePath: builtins.pathExists (src + ("/" + (relativePath + "/Cargo.toml")));
         in
           listToAttrs
             (map (relativePath:
@@ -118,7 +120,7 @@ rec {
               in {
                 name = toPkgId memberManifest.package;
                 value = mkPkgInfoFromCargoToml memberManifest memberRoot main-workspace;
-              }) (filter (relativePath: builtins.pathExists (src + ("/" + (relativePath + "/Cargo.toml")))) (workspace_members ++ root_package)));
+              }) (filter is-directory-crate (workspace_members ++ root_package ++ maybe-crates)));
 
     in mkRustPackageSet {
       gitSrcInfos = mapAttrs (url: src:
@@ -244,7 +246,7 @@ rec {
                 dependencies = selectDeps pkgs info.dependencies normalDependencies "normal" false;
                 linksDependencies = selectDeps pkgs info.dependencies normalDependencies "normal" true;
               }
-          ) resolvedFeatures.normal;
+          ) normalDependencies;
         in
           pkgs.${rootId}
       ) {
