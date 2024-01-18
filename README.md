@@ -23,8 +23,7 @@ Build Rust crates with *Nix Build System*.
     - [ ] Auto-`members`
     - [x] `excludes`
       FIXME: Buggy.
-  - [ ] `resolver`
-        Currently has custom resolution algorithm, more like v2.
+  - [x] `resolver`
   - [x] `links`
   - [x] `[profile]`
   - [x] `[{,dev-,build-}dependencies]`

@@ -1,4 +1,4 @@
-{ lib }:
+{ lib, nix-filter }:
 let
   callLib = file: import file { inherit lib self; };
   self = {
@@ -9,5 +9,6 @@ let
     pkg-info = callLib ./pkg-info.nix;
     resolve = callLib ./resolve.nix;
     support = callLib ./support.nix;
+    inherit nix-filter;
   };
 in self

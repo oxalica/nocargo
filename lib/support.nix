@@ -80,6 +80,7 @@ rec {
   mkRustPackageOrWorkspace =
     { defaultRegistries, pkgsBuildHost, buildRustCrate, stdenv }@default:
     { src # : Path
+    , lockPath ? null
     , gitSrcs ? {} # : Attrset Path
     , buildCrateOverrides ? {} # : Attrset (Attrset _)
     , extraRegistries ? {} # : Attrset Registry
@@ -97,25 +98,33 @@ rec {
       excluded = map sanitizeRelativePath (manifest.workspace.exclude or []);
       members = subtractLists excluded selected;
 
-      lock = fromTOML (readFile (src + "/Cargo.lock"));
+      lockSrc = if lockPath == null then (src + "/Cargo.lock") else lockPath;
+      lock = fromTOML (readFile lockSrc);
       # We don't distinguish between v1 and v2. But v3 is different from both.
       lockVersionSet = { lockVersion = lock.version or 2; };
 
       localSrcInfos =
-        listToAttrs
-        (map (relativePath:
-          let
-            memberRoot = src + ("/" + relativePath);
-            memberManifest = fromTOML (readFile (memberRoot + "/Cargo.toml")) // lockVersionSet;
-          in {
-            name = toPkgId memberManifest.package;
-            value = mkPkgInfoFromCargoToml memberManifest memberRoot;
-          }
-          ) (if manifest ? workspace then members else [ "" ]));
+        let
+          workspace_members = (if manifest ? workspace then members else []);
+          root_package = (if manifest ? package then [ "" ] else []);
+          main-workspace = if manifest ? "workspace" then manifest.workspace else {};
+          maybe-crates = lib.attrNames (lib.filterAttrs (path: type: type == "directory") (builtins.readDir src));
+          is-directory-crate = relativePath: builtins.pathExists (src + ("/" + (relativePath + "/Cargo.toml")));
+        in
+          listToAttrs
+            (map (relativePath:
+              let
+                memberSrc =  src + ("/" + relativePath);
+                memberRoot = if relativePath == "" then memberSrc else self.nix-filter.lib { root = memberSrc; };
+                memberManifest = fromTOML (readFile (memberSrc + "/Cargo.toml")) // lockVersionSet;
+              in {
+                name = toPkgId memberManifest.package;
+                value = mkPkgInfoFromCargoToml memberManifest memberRoot main-workspace;
+              }) (filter is-directory-crate (workspace_members ++ root_package ++ maybe-crates)));
 
     in mkRustPackageSet {
       gitSrcInfos = mapAttrs (url: src:
-        mkPkgInfoFromCargoToml (fromTOML (readFile (src + "/Cargo.toml")) // lockVersionSet) src
+        mkPkgInfoFromCargoToml (fromTOML (readFile (src + "/Cargo.toml")) // lockVersionSet) src {}
       ) gitSrcs;
 
       inherit lock profiles localSrcInfos buildRustCrate buildCrateOverrides registries rustc stdenv;
@@ -170,14 +179,13 @@ rec {
         }) info.dependencies;
       }) pkgSetRaw;
 
-      selectDeps = pkgs: deps: features: selectKind: onlyLinks:
+      selectDeps = pkgs: deps: enabled-deps: selectKind: onlyLinks:
         map
           (dep: { rename = dep.rename or null; drv = pkgs.${dep.resolved}; })
           (filter
-            ({ kind, name, optional, targetEnabled, resolved, ... }@dep:
-              targetEnabled && kind == selectKind
-              && (optional -> elem name features)
-              && (if resolved == null then throw "Unresolved dependency: ${toJSON dep}" else true)
+            ({ kind, resolved, ... }:
+              kind == selectKind && resolved != null 
+              && enabled-deps ? ${resolved}
               && (onlyLinks -> pkgSet.${resolved}.links != null))
             deps);
 
@@ -187,8 +195,20 @@ rec {
           # But this override is applied just before the `buildRustCrate` call.
           args' = args // (info.__override or lib.id) args;
           args'' = args' // (buildCrateOverrides.${toPkgId info} or lib.id) args';
+          workspace-inheritable-fields = [
+            "authors" "categories"
+            "description" "documentation"
+            "edition" "exclude"
+            "homepage" "include"
+            "keywords" "license"
+            "license-file" "publish"
+            "readme" "repository"
+            "rust-version" "version"
+          ];
+          args''' = (lib.filterAttrs (name: _: elem name workspace-inheritable-fields)
+            info) // args'';
         in
-          buildRustCrate args'';
+          buildRustCrate args''';
 
       mkPkg = profile: rootId: makeOverridable (
         { features }:
@@ -196,46 +216,37 @@ rec {
           rootFeatures = if features != null then features
             else if pkgSet.${rootId}.features ? default then [ "default" ]
             else [];
-
-          resolvedBuildFeatures = resolveFeatures {
-            inherit pkgSet rootId rootFeatures;
-            depFilter = dep: dep.targetEnabled && dep.kind == "normal" || dep.kind == "build";
-          };
-          resolvedNormalFeatures = resolveFeatures {
-            inherit pkgSet rootId rootFeatures;
-            depFilter = dep: dep.targetEnabled && dep.kind == "normal";
+          resolvedFeatures = resolveFeatures {
+            inherit rootId pkgSet rootFeatures;
           };
 
+          buildDependencies = (resolvedFeatures.normal // resolvedFeatures.build);
+          normalDependencies = resolvedFeatures.normal;
+          
           pkgsBuild = mapAttrs (id: features: let info = pkgSet.${id}; in
-            if features != null then
               buildRustCrate' info {
                 inherit (info) version src procMacro;
                 inherit features profile rustc;
                 pname = info.name;
                 capLints = if localSrcInfos ? id then null else "allow";
-                buildDependencies = selectDeps pkgsBuild info.dependencies features "build" false;
+                buildDependencies = selectDeps pkgsBuild info.dependencies buildDependencies "build" false;
                 # Build dependency's normal dependency is still build dependency.
-                dependencies = selectDeps pkgsBuild info.dependencies features "normal" false;
-                linksDependencies = selectDeps pkgsBuild info.dependencies features "normal" true;
+                dependencies = selectDeps pkgsBuild info.dependencies normalDependencies "normal" false;
+                linksDependencies = selectDeps pkgsBuild info.dependencies normalDependencies "normal" true;
               }
-            else
-              null
-          ) resolvedBuildFeatures;
+          ) buildDependencies; 
 
           pkgs = mapAttrs (id: features: let info = pkgSet.${id}; in
-            if features != null then
               buildRustCrate' info {
                 inherit (info) version src links procMacro;
                 inherit features profile rustc;
                 pname = info.name;
                 capLints = if localSrcInfos ? id then null else "allow";
-                buildDependencies = selectDeps pkgsBuild info.dependencies features "build" false;
-                dependencies = selectDeps pkgs info.dependencies features "normal" false;
-                linksDependencies = selectDeps pkgs info.dependencies features "normal" true;
+                buildDependencies = selectDeps pkgsBuild info.dependencies buildDependencies "build" false;
+                dependencies = selectDeps pkgs info.dependencies normalDependencies "normal" false;
+                linksDependencies = selectDeps pkgs info.dependencies normalDependencies "normal" true;
               }
-            else
-              null
-          ) resolvedNormalFeatures;
+          ) normalDependencies;
         in
           pkgs.${rootId}
       ) {
@@ -277,7 +288,7 @@ rec {
   in
   {
     features = let ret = build ../tests/features {}; in
-      assertEq ret.features [ "a" "default" "semver" ]; # FIXME
+      assertEq (lib.naturalSort ret.features) [ "a" "default" "semver" ];
 
     dependency-features = let
       ret = build ../tests/features { };
@@ -285,7 +296,7 @@ rec {
       serde = (head semver.dependencies).drv;
     in assertEq
       [ semver.features serde.features ]
-      [ [ "default" "serde" "std" ] [ /* Don't trigger default features */ ] ];
+      [ ["serde" "std" "default"] [ /* Don't trigger default features */ ] ];
 
     dependency-overrided = let
       ret = build ../tests/features {

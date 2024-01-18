@@ -1,6 +1,7 @@
 {
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
+    nix-filter.url = "github:numtide/nix-filter";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     registry-crates-io = {
       url = "github:rust-lang/crates.io-index";
@@ -8,14 +9,14 @@
     };
   };
 
-  outputs = { self, flake-utils, nixpkgs, registry-crates-io }@inputs:
+  outputs = { self, flake-utils, nixpkgs, registry-crates-io, nix-filter }@inputs:
     let
       supportedSystems = [ "x86_64-linux" "aarch64-linux" ];
 
       inherit (builtins) toJSON typeOf;
       inherit (nixpkgs.lib) isDerivation isFunction isAttrs mapAttrsToList listToAttrs flatten;
 
-      nocargo-lib = import ./lib { inherit (nixpkgs) lib; };
+      nocargo-lib = import ./lib { inherit (nixpkgs) lib; inherit nix-filter; };
 
     in flake-utils.lib.eachSystem supportedSystems (system:
       let

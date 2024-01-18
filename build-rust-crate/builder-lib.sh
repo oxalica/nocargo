@@ -25,13 +25,17 @@ configurePhase() {
         exit 1
     fi
 
-    edition="$(jq --raw-output '.package.edition // .lib.edition // ""' "$cargoTomlJson")"
+    if [[ -z "$edition" ]]; then
+        edition="$(jq --raw-output '.package.edition // .lib.edition // ""' "$cargoTomlJson")"
+    fi
+    
     if [[ -n "$edition" ]]; then
         buildFlagsArray+=(--edition="$edition")
     fi
 
     mapfile -t crateTypes < <(jq --raw-output '.lib."crate-type" // ["lib"] | .[]' "$cargoTomlJson")
-    cargoTomlIsProcMacro="$(jq --raw-output 'if .lib."proc-macro" then "1" else "" end' "$cargoTomlJson")"
+    cargoTomlIsProcMacro="$(jq --raw-output 'if .lib."proc-macro" or .lib."proc_macro" then "1" else "" end' "$cargoTomlJson")"
+
     if [[ "$cargoTomlIsProcMacro" != "$procMacro" ]]; then
         echo "Cargo.toml says proc-macro = ${cargoTomlIsProcMacro:-0} but it is built with procMacro = ${procMacro:-0}"
         exit 1
@@ -52,6 +56,7 @@ configurePhase() {
                 needLinkDeps=1
                 ;;
             cdylib)
+                needLinkDeps=1
                 buildCdylib=1
                 ;;
             *)
