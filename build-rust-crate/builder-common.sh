@@ -119,9 +119,9 @@ setCargoCommonBuildEnv() {
         CARGO_PKG_HOMEPAGE CARGO_PKG_LICENSE CARGO_PKG_LICENSE_FILE
 
     if [[ "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-([A-Za-z0-9.-]+))?(\+.*)?$ ]]; then
-        export CARGO_PKG_VERSION_MAJOR="${BASH_REMATCH[0]}"
-        export CARGO_PKG_VERSION_MINOR="${BASH_REMATCH[1]}"
-        export CARGO_PKG_VERSION_PATCH="${BASH_REMATCH[2]}"
+        export CARGO_PKG_VERSION_MAJOR="${BASH_REMATCH[1]}"
+        export CARGO_PKG_VERSION_MINOR="${BASH_REMATCH[2]}"
+        export CARGO_PKG_VERSION_PATCH="${BASH_REMATCH[3]}"
         export CARGO_PKG_VERSION_PRE="${BASH_REMATCH[4]}"
     else
         echo "Invalid version: $version"
