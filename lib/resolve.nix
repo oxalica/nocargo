@@ -1,10 +1,10 @@
 { lib, self }:
 let
-  inherit (builtins) readFile match fromTOML toJSON;
+  inherit (builtins) readFile match fromTOML toJSON attrNames foldl' zipAttrsWith head;
   inherit (lib)
-    foldl' concatStringsSep listToAttrs filter elemAt length optional sort elem flatten
+    listToAttrs filter elemAt length sort elem flatten
     hasPrefix substring
-    attrValues mapAttrs attrNames filterAttrs composeManyExtensions assertMsg;
+    attrValues mapAttrs filterAttrs assertMsg;
   inherit (self.semver) parseSemverReq;
   inherit (self.pkg-info) mkPkgInfoFromCargoToml toPkgId sanitizeDep;
 in rec {
@@ -24,7 +24,7 @@ in rec {
   # }
   #
   # Currently (rust 1.63.0), there are 3 versions of the lock file.
-  # We supports V1, V2 and V3.
+  # We support V1, V2 and V3.
   # See:
   # https://github.com/rust-lang/cargo/blob/rust-1.63.0/src/cargo/core/resolver/resolve.rs#L56
   # https://github.com/rust-lang/cargo/blob/rust-1.63.0/src/cargo/core/resolver/encode.rs
@@ -145,119 +145,292 @@ in rec {
   in
     fixed;
 
-  # Enable `features` in `prev` and do recursive update according to `defs`.
-  # Optional dependencies must be included in `defs`.
-  enableFeatures = pkgId: defs: prev: features:
-    foldl' (prev: feat: let
-      m = match "(.*)/.*" feat;
-      mDep = elemAt m 0;
-      nexts =
-        if m == null then
-          # Must be defined.
-          defs.${feat} or (throw ''
-            Feature '${feat}' is invalid for ${pkgId}.
-            Possible features: ${concatStringsSep "," (attrNames defs)}
-          '')
-        else
-          # Dependent features implies optional dependency to be enabled.
-          # But non-optional dependency doesn't have coresponding feature flag.
-          optional (defs ? ${mDep}) mDep;
-    in
-      if prev.${feat} or false then
-        prev
-      else
-        enableFeatures pkgId defs (prev // { ${feat} = true; }) nexts
-    ) prev features;
+  # Parse a feature string into a structured attribute set, dependending on the type of feature.
+  # parse-feature "foo"      => { feat-name = "foo"; type = "normal"; }
+  # parse-feature "foo/bar"  => { dep-name = "foo"; feat-name = "bar"; type = "dep-feature"; weak = false; }
+  # parse-feature "foo?/bar" => { dep-name = "foo"; feat-name = "bar"; type = "dep-feature"; weak = true; }
+  parse-feature = feat: let
+    is-optional-dependency = match "dep:(.*)" feat;
+    is-dependency-feature = match "([^?]*)([?])?/(.*)" feat;
+  in
+    if is-optional-dependency != null then {
+      type = "enable-dep";
+      dep-name = head is-optional-dependency;
+    }
+    else if is-dependency-feature != null then {
+      type = "dep-feature";
+      dep-name = elemAt is-dependency-feature 0;
+      weak = (elemAt is-dependency-feature 1) != null;
+      feat-name = elemAt is-dependency-feature 2;
+    } else {
+      type = "normal";
+      feat-name = feat;
+    };
 
-  # Resolve all features.
-  # Note that dependent features like `foo/bar` are only available during resolution,
-  # and will be removed in result set.
+  # Merges different feature sets by concatenating the features and or'ing the enable field.
+  # Features are treated as keys of attribute sets for automatic deduplication when concatenating
+  # so it's values are set to null as there's no relevant content there.
+  # This behavior might change in the future.
+  # Eg:
+  # mergeChanges [
+  #   {
+  #     normal = { a = { features = { foo = null; }; enabled = false; }; };
+  #     build = { b = { features = {}; enabled = true; }; };
+  #   }
+  #   {
+  #     normal = { a = { features = { bar = null; }; enabled = true; }; };
+  #   }
+  # ]
+  # ->
+  # { "normal" = { "a" = { "features" = { "foo" = null; "bar" = null; }; enabled = true }; };
+  #   "build" = { "b" = { "features" = {}; enabled = true; }; };
+  # }
+  # TODO: this function isn't really efficient, though I'm not sure there's a better way to write it.
+  mergeChanges = let
+    attrset = {
+      op = a: b: a // b;
+      init = {};
+    };
+    bool = {
+      op = a: b: a || b;
+      init = false;
+    };
+    key-type = {
+      features = attrset;
+      deferred = attrset;
+      enabled = bool;
+    };
+  in changes:
+    zipAttrsWith (build-kind: pkgs:
+      zipAttrsWith (pkg-name: attrs:
+        zipAttrsWith (attr-name: values: let
+          val-type = key-type.${attr-name};
+        in 
+          foldl' val-type.op val-type.init values
+        ) attrs
+      ) pkgs
+    ) changes;
+
+  # Special case for a change which only concatenates a single feature to a package
+  # Used to avoid the `mergeChanges` based merging which is unnecessarily heavy in some cases,
+  # as it will re-create the whole attrset every call.
+  # TODO: assert this is indeed faster through benchmarks.
+  add-feature-to-pkg = { seen, kind, pkgId, feat-name, deferred ? false } : let
+    feature-type = if deferred then "deferred" else "features";
+  in
+    seen // {
+      ${kind} = (seen.${kind} or {}) // {
+        ${pkgId} = (seen.${kind}.${pkgId} or { }) // {
+          ${feature-type} = (seen.${kind}.${pkgId}.${feature-type} or {}) // { ${feat-name} = null; };
+        };
+      };
+    };
+
+  # Special case for a change which only enables a package
+  # Used to avoid the `mergeChanges` based merging which is unnecessarily heavy in some cases,
+  # as it will re-create the whole attrset every call.
+  # TODO: assert this is indeed faster through benchmarks.
+  enable-pkg = { seen, kind, pkgId }:
+    seen // {
+      ${kind} = (seen.${kind} or {}) // {
+        ${pkgId} = (seen.${kind}.${pkgId} or {}) // {
+          enabled = true;
+        };
+      };
+    };
+
+  # Folds a function `f` through all the dependencies of a package that
+  # are named dep-name and are enabled for the build. This is used to
+  # be able to enable different kinds (and different targets) all in one
+  # fell swoop.
+  forallDepsWithSameName = { pkgSet, pkgId, dep-name, seen, kind }: f: let
+    deps = filter (dep:
+      dep.name == dep-name &&
+      dep.resolved != null &&
+      dep.targetEnabled &&
+      (kind == "dev" -> dep.kind == kind) # FIXME: is this correct?
+    ) pkgSet.${pkgId}.dependencies;
+  in
+    lib.foldl' (acc: dep:
+      let next = f dep; in
+      mergeChanges [acc next]
+    ) seen deps;
+  
+  # Activates a single feature, enabling all the changes made by it.
+  # It may enable other packages, as well as other packages' features,
+  # so `mergeChanges` is needed to integrate it with other `seen`-like set.
+  # In order to enable multiple features, see `enableFeatures`.
+  enableFeature = { pkgSet, pkgId, feat-name, kind, seen }: let
+    feature = parse-feature feat-name;
+  in
+    if feature.type == "normal" then
+      enableFeatureRecursively {
+        inherit pkgSet pkgId kind seen;
+        inherit (feature) feat-name;
+      }
+    else if feature.type == "dep-feature" then
+      enableDepFeature {
+        inherit pkgSet pkgId kind seen;
+        inherit (feature) dep-name feat-name weak;
+      }
+    else if feature.type == "enable-dep" then
+      enableDependency {
+        inherit pkgSet pkgId seen kind;
+        inherit (feature) dep-name;
+      }
+    else
+      throw "Unrecognized feature type: ${feature.type}";
+
+  # Enables all optional dependencies of package `pkgId` named `dep-name`.
+  # This means same dependency for different build kinds, as they appear as different dependencies on
+  # the dependency graph.
+  enableDependency = { pkgSet, pkgId, dep-name, seen, kind } @ args:
+    forallDepsWithSameName args (dep: let
+      add-default = if dep.default_features && (pkgSet.${dep.resolved}.features ? default) then ["default"] else [];
+      deferred-features = attrNames (seen.${dep.kind}.${dep.resolved}.deferred or {});
+    in
+      enablePackage {
+        inherit pkgSet seen;
+        inherit (dep) kind;
+        pkgId = dep.resolved;
+        features = deferred-features ++ dep.features ++ add-default;
+      });
+
+  # Enable the feature `feat-name` together with all the other features enabled by it.
+  enableFeatureRecursively = {pkgSet, pkgId, kind, seen, feat-name}: let
+    features = pkgSet.${pkgId}.features;
+    add-feature = add-feature-to-pkg {
+      inherit seen kind pkgId feat-name;
+    };
+    already-enabled = (seen.${kind}.${pkgId}.features or {}) ? ${feat-name};
+    enable-feature-rec =
+      if features ? ${feat-name} then
+        enableFeatures {
+          inherit pkgSet pkgId kind;
+          features = features.${feat-name};
+          seen = add-feature;
+        }
+      else
+        # old style optional dependencies define features with the exact
+        # same name as the dependency. this is called implicit features.
+        # https://doc.rust-lang.org/cargo/reference/features.html#optional-dependencies
+        enableDependency {
+          inherit pkgSet pkgId kind;
+          seen = add-feature;
+          dep-name = feat-name;
+        };
+  in
+    if !already-enabled then 
+      enable-feature-rec
+    else
+      seen;
+
+
+  # Enable a dependency feature, of the form dep-name?/feat-name
+  enableDepFeature = { pkgSet, pkgId, kind, seen, feat-name, dep-name, weak }:
+    forallDepsWithSameName { inherit pkgSet pkgId dep-name seen kind; } (dep: let
+      defer-feature = add-feature-to-pkg {
+        inherit seen feat-name;
+        inherit (dep) kind;
+        pkgId = dep.resolved;
+        deferred = true;
+      };
+      enable-feature-with-dep-name-on-pkg = enableFeature {
+        inherit pkgSet pkgId kind seen;
+        feat-name = dep-name;
+      };
+      enable-dependency =
+        if dep.optional then
+          enableDependency {
+            inherit pkgSet pkgId dep-name kind;
+            seen = if !weak then enable-feature-with-dep-name-on-pkg else seen;
+          }
+        else seen;
+    in
+      if weak && !(seen.${dep.kind}.${dep.resolved}.enabled or false) && dep.optional then
+        defer-feature
+      else
+        enableFeature {
+          inherit pkgSet feat-name;
+          inherit (dep) kind;
+          seen = enable-dependency;
+          pkgId = dep.resolved;
+        }
+    ) ;
+
+  # Enable the feature list `features` for pkgId, merging them sequentially
+  # and returning the change set equivalent to enabling all of them.
+  enableFeatures = { pkgSet, pkgId, kind, seen, features }:
+    foldl' (acc: feat-name: let
+      next = enableFeature {
+        inherit pkgSet pkgId feat-name kind;
+        seen = acc;
+      };
+    in
+      mergeChanges [acc next]
+    ) seen features;
+
+  # Enables a package with `features` enabled, together with
+  # it's non-optional dependencies. Only cycles through the dependencies
+  # if it hasn't already been enabled, otherwise only enables the features,
+  # as to avoid infinite cycles.
+  enablePackage = { pkgSet, pkgId, kind, features, seen }: let
+    deps = pkgSet.${pkgId}.dependencies;
+    already-enabled = seen.${kind}.${pkgId}.enabled or false;
+    enable-features = enableFeatures {
+      inherit pkgSet pkgId kind features;
+      seen = enable-pkg { inherit seen kind pkgId; };
+    };
+    enable-dependencies = foldl' (acc: dep:
+      if dep.targetEnabled && dep.resolved != null && !dep.optional then let
+        default = if dep.default_features && (pkgSet.${dep.resolved}.features ? "default") then ["default"] else [];
+      in
+        enablePackage {
+          inherit pkgSet;
+          inherit (dep) kind;
+          pkgId = dep.resolved;
+          features = dep.features ++ default;
+          seen = acc;
+        }
+      else acc
+    ) enable-features deps;
+  in
+    if !already-enabled then
+      enable-dependencies
+    else
+      enable-features;
+
+  # Resolve all features for a root package, together with all its
+  # dependencies' features recursively.
   #
   # Returns:
   # {
-  #   "libc 0.1.0 (https://...)" = [ "default" "foo" "bar" ];
+  #   "normal" = {
+  #     "libc 0.1.0 (https://...)" = [ "default" "foo" "bar" ];
+  #     ...
+  #     };
+  #   "build" = {...};
+  #   "dev" = {...};
   # }
   resolveFeatures = {
-  # Follows the layout of the output of `resolveDepsFromLock`.
+    # Follows the layout of the output of `resolveDepsFromLock`.
     pkgSet
-  # Dependency edges (`{ name, kind, resolved, ... }`) will be checked by this filter.
-  # Only edges returning `true` are considered and propagated.
-  , depFilter ? dep: true
-  # Eg. "libc 0.1.0 (https://...)"
-  , rootId
-  # Eg. [ "foo" "bar/baz" ]
-  , rootFeatures
+    # Eg. "libc 0.1.0 (https://...)"
+    , rootId
+    # Eg. [ "foo" "bar/baz" ]
+    , rootFeatures
   }: let
-
-    featureDefs = mapAttrs (id: { features, dependencies, ... }:
-      features //
-      listToAttrs
-        (map (dep: { name = dep.name; value = []; })
-          # We should collect all optional dependencies for feature def, even though they are not selected.
-          # This happens on `rand@0.8.3`, whose `default` feature enables `rand_hc`, which is only available
-          # for `cfg(target_os = "emscripten")`. This feature should be still enable, though optional dependency
-          # is not.
-          (filter (dep: dep.optional) dependencies))
-    ) pkgSet;
-
-    # initialFeatures = mapAttrs (id: defs: mapAttrs (k: v: false) defs) featureDefs;
-    initialFeatures = mapAttrs (id: info: {}) pkgSet;
-
-    # Overlay of spreading <id>'s nested features into dependencies and enable optional dependencies.
-    updateDepsOverlay = id: final: prev: let
-      info = pkgSet.${id};
-      finalFeatures = final.${id} or {};
-      updateDep = { name, optional, resolved, default_features, features, ... }: final: prev: let
-        depFeatures =
-          lib.optional (default_features && featureDefs.${resolved} ? default) "default" ++
-          features ++
-          filter (feat: feat != null)
-            (map (feat: let m = match "(.*)/(.*)" feat; in
-              if m != null && elemAt m 0 == name then
-                elemAt m 1
-              else
-                null
-              ) (attrNames finalFeatures));
-      in
-        {
-          ${resolved} =
-            # This condition must be evaluated under `${resolved} =`,
-            # or we'll enter an infinite recursion.
-            if optional -> finalFeatures.${name} or false then
-              enableFeatures
-                resolved
-                featureDefs.${resolved}
-                prev.${resolved}
-                depFeatures
-            else
-              prev.${resolved};
-        };
-    in
-      composeManyExtensions
-        (map updateDep
-          (filter depFilter info.dependencies))
-        final
-        prev;
-
-    rootOverlay = final: prev: {
-      ${rootId} = enableFeatures
-        rootId
-        featureDefs.${rootId}
-        initialFeatures.${rootId}
-        rootFeatures;
+    root-package = enablePackage {
+      inherit pkgSet;
+      kind = "normal";
+      pkgId = rootId;
+      features = rootFeatures;
+      seen = {};
     };
-
-    final =
-      composeManyExtensions
-      (map updateDepsOverlay (attrNames pkgSet) ++ [ rootOverlay ])
-      final
-      initialFeatures;
-
-    final' =
-      mapAttrs (id: feats: filter (feat: match ".*/.*" feat == null) (attrNames feats)) final;
-
+    only-enabled-pkgs = filterAttrs (_: { enabled ? false, ...}: enabled);
+    get-pkg-features = mapAttrs (_: { features ? {}, ...}: attrNames features);
   in
-    final';
+    mapAttrs (_kind: pkgs: get-pkg-features (only-enabled-pkgs pkgs)) root-package;
 
   preprocess-feature-tests = { assertEq, ... }: let
     test = optionalDeps: featureDefs: expect:
@@ -287,9 +460,14 @@ in rec {
 
   update-feature-tests = { assertEq, ... }: let
     testUpdate = defs: features: expect: let
-      init = mapAttrs (k: v: false) defs;
-      out = enableFeatures "pkgId" defs init features;
-      enabled = attrNames (filterAttrs (k: v: v) out);
+      pkgSet = { pkgId = { dependencies = []; features = defs; }; };
+      out = enablePackage {
+        inherit pkgSet features;
+        pkgId = "pkgId";
+        kind = "normal";
+        seen = {};
+      };
+      enabled = lib.lists.naturalSort (attrNames (out.normal.pkgId.features or {}));
     in
       assertEq enabled expect;
   in {
@@ -333,15 +511,16 @@ in rec {
     test = pkgSet: rootId: rootFeatures: expect: let
       resolved = resolveFeatures { inherit pkgSet rootId rootFeatures; };
       expect' = mapAttrs (id: feats: sort (a: b: a < b) feats) expect;
+      got = mapAttrs (id: feats: sort (a: b: a < b) feats) resolved.normal;
     in
-      assertEq resolved expect';
+      assertEq got expect';
 
     pkgSet1 = {
       a = {
         features = { foo = [ "bar" ]; bar = []; baz = [ "b" ]; };
         dependencies = [
-          { name = "b"; resolved = "b-id"; optional = true; default_features = true; features = [ "a" ]; }
-          { name = "unused"; resolved = null; optional = true; default_features = true; features = []; }
+          { name = "b"; resolved = "b-id"; optional = true; default_features = true; features = [ "a" ]; targetEnabled = true; kind = "normal";}
+          { name = "unused"; resolved = null; optional = true; default_features = true; features = []; targetEnabled = true; kind = "normal";}
         ];
       };
       b-id = {
@@ -354,14 +533,14 @@ in rec {
       my-id = {
         features = { default = [ "tokio/macros" ]; };
         dependencies = [
-          { name = "tokio"; resolved = "tokio-id"; optional = false; default_features = false; features = [ "fs" ]; }
-          { name = "dep"; resolved = "dep-id"; optional = false; default_features = true; features = []; }
+          { name = "tokio"; resolved = "tokio-id"; optional = false; default_features = false; features = [ "fs" ]; targetEnabled = true; kind = "normal";}
+          { name = "dep"; resolved = "dep-id"; optional = false; default_features = true; features = []; targetEnabled = true; kind = "normal";}
         ];
       };
       dep-id = {
         features = { default = [ "tokio/sync" ]; };
         dependencies = [
-          { name = "tokio"; resolved = "tokio-id"; optional = false; default_features = false; features = [ "sync" ]; }
+          { name = "tokio"; resolved = "tokio-id"; optional = false; default_features = false; features = [ "sync" ]; targetEnabled = true; kind = "normal";}
         ];
       };
       tokio-id = {
@@ -373,7 +552,7 @@ in rec {
   in {
     simple = test pkgSet1 "a" [ "foo" ] {
       a = [ "foo" "bar" ];
-      b-id = [ ];
+      # b-id is not enabled so it does not appear in features.
     };
 
     depend = test pkgSet1 "a" [ "foo" "baz" ] {
@@ -424,8 +603,8 @@ in rec {
             name = "testt";
             version = "0.1.0";
             dependencies = [
-             "libc 0.1.12"
-             "libc 0.2.95 (registry+https://github.com/rust-lang/crates.io-index)"
+              "libc 0.1.12"
+              "libc 0.2.95 (registry+https://github.com/rust-lang/crates.io-index)"
             ];
           }
         ];

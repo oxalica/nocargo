@@ -170,14 +170,13 @@ rec {
         }) info.dependencies;
       }) pkgSetRaw;
 
-      selectDeps = pkgs: deps: features: selectKind: onlyLinks:
+      selectDeps = pkgs: deps: enabled-deps: selectKind: onlyLinks:
         map
           (dep: { rename = dep.rename or null; drv = pkgs.${dep.resolved}; })
           (filter
-            ({ kind, name, optional, targetEnabled, resolved, ... }@dep:
-              targetEnabled && kind == selectKind
-              && (optional -> elem name features)
-              && (if resolved == null then throw "Unresolved dependency: ${toJSON dep}" else true)
+            ({ kind, resolved, ... }:
+              kind == selectKind && resolved != null 
+              && enabled-deps ? ${resolved}
               && (onlyLinks -> pkgSet.${resolved}.links != null))
             deps);
 
@@ -196,46 +195,37 @@ rec {
           rootFeatures = if features != null then features
             else if pkgSet.${rootId}.features ? default then [ "default" ]
             else [];
-
-          resolvedBuildFeatures = resolveFeatures {
-            inherit pkgSet rootId rootFeatures;
-            depFilter = dep: dep.targetEnabled && dep.kind == "normal" || dep.kind == "build";
-          };
-          resolvedNormalFeatures = resolveFeatures {
-            inherit pkgSet rootId rootFeatures;
-            depFilter = dep: dep.targetEnabled && dep.kind == "normal";
+          resolvedFeatures = resolveFeatures {
+            inherit rootId pkgSet rootFeatures;
           };
 
+          buildDependencies = (resolvedFeatures.normal // resolvedFeatures.build);
+          normalDependencies = resolvedFeatures.normal;
+          
           pkgsBuild = mapAttrs (id: features: let info = pkgSet.${id}; in
-            if features != null then
               buildRustCrate' info {
                 inherit (info) version src procMacro;
                 inherit features profile rustc;
                 pname = info.name;
                 capLints = if localSrcInfos ? id then null else "allow";
-                buildDependencies = selectDeps pkgsBuild info.dependencies features "build" false;
+                buildDependencies = selectDeps pkgsBuild info.dependencies buildDependencies "build" false;
                 # Build dependency's normal dependency is still build dependency.
-                dependencies = selectDeps pkgsBuild info.dependencies features "normal" false;
-                linksDependencies = selectDeps pkgsBuild info.dependencies features "normal" true;
+                dependencies = selectDeps pkgsBuild info.dependencies normalDependencies "normal" false;
+                linksDependencies = selectDeps pkgsBuild info.dependencies normalDependencies "normal" true;
               }
-            else
-              null
-          ) resolvedBuildFeatures;
+          ) buildDependencies; 
 
           pkgs = mapAttrs (id: features: let info = pkgSet.${id}; in
-            if features != null then
               buildRustCrate' info {
                 inherit (info) version src links procMacro;
                 inherit features profile rustc;
                 pname = info.name;
                 capLints = if localSrcInfos ? id then null else "allow";
-                buildDependencies = selectDeps pkgsBuild info.dependencies features "build" false;
-                dependencies = selectDeps pkgs info.dependencies features "normal" false;
-                linksDependencies = selectDeps pkgs info.dependencies features "normal" true;
+                buildDependencies = selectDeps pkgsBuild info.dependencies buildDependencies "build" false;
+                dependencies = selectDeps pkgs info.dependencies normalDependencies "normal" false;
+                linksDependencies = selectDeps pkgs info.dependencies normalDependencies "normal" true;
               }
-            else
-              null
-          ) resolvedNormalFeatures;
+          ) normalDependencies;
         in
           pkgs.${rootId}
       ) {
@@ -277,7 +267,7 @@ rec {
   in
   {
     features = let ret = build ../tests/features {}; in
-      assertEq ret.features [ "a" "default" "semver" ]; # FIXME
+      assertEq (lib.naturalSort ret.features) [ "a" "default" "semver" ];
 
     dependency-features = let
       ret = build ../tests/features { };
